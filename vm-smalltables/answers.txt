@@ -1,0 +1,385 @@
+Homework (Simulation)
+This fun little homework tests if you understand how a multi-level
+page table works. And yes, there is some debate over the use of the term
+“fun” in the previous sentence. The program is called, perhaps unsurprisingly: 
+paging-multilevel-translate.py; see the README for
+details.
+
+Questions
+1. With a linear page table, you need a single register to locate the
+page table, assuming that hardware does the lookup upon a TLB
+miss. How many registers do you need to locate a two-level page
+table? A three-level table?
+
+Still one register PDBR (Page Directory Base Register which holds physical frame or 
+page number where page directory is stored, which page the page directory 
+is located upon)
+
+
+2. Use the simulator to perform translations given random seeds 0,
+1, and 2, and check your answers using the -c flag. How many
+memory references are needed to perform each lookup?
+
+3 memory references since 2-level page table with page directory: 
+ - find page directory entry, 
+ - find page table entry, 
+ - find VPN translation to physical frame number
+
+./paging-multilevel-translate.py -s 0
+PDBR: 108  (decimal) [This means the page directory is held in this page]
+
+Virtual Address 611c: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 3da8: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 17f5: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 7f6c: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 0bad: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 6d60: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 2a5b: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 4c5e: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 2592: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 3e99: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+
+hex_string 611c
+binary_value 110000100011100
+pdIndex 24
+pde contents and valid bit 10100001 1
+pt_num 33
+ptIndex 8
+pte contents and valid bit 10110101 1
+phys_frame_num 53
+offset 28
+phys_addr 0x6bc
+value 08
+
+hex_string 3da8
+binary_value 011110110101000
+pdIndex 15
+pde contents and valid bit 11010110 1
+pt_num 86
+ptIndex 13
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+hex_string 17f5
+binary_value 001011111110101
+pdIndex 5
+pde contents and valid bit 11010100 1
+pt_num 84
+ptIndex 31
+pte contents and valid bit 11001110 1
+phys_frame_num 78
+offset 21
+phys_addr 0x9d5
+value 1c
+
+hex_string 7f6c
+binary_value 111111101101100
+pdIndex 31
+pde contents and valid bit 11111111 1
+pt_num 127
+ptIndex 27
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+hex_string 0bad
+binary_value 000101110101101
+pdIndex 2
+pde contents and valid bit 11100000 1
+pt_num 96
+ptIndex 29
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+hex_string 6d60
+binary_value 110110101100000
+pdIndex 27
+pde contents and valid bit 11000010 1
+pt_num 66
+ptIndex 11
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+hex_string 2a5b
+binary_value 010101001011011
+pdIndex 10
+pde contents and valid bit 11010101 1
+pt_num 85
+ptIndex 18
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+hex_string 4c5e
+binary_value 100110001011110
+pdIndex 19
+pde contents and valid bit 11111000 1
+pt_num 120
+ptIndex 2
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+hex_string 2592
+binary_value 010010110010010
+pdIndex 9
+pde contents and valid bit 10011110 1
+pt_num 30
+ptIndex 12
+pte contents and valid bit 10111101 1
+phys_frame_num 61
+offset 18
+phys_addr 0x7b2
+value 1b
+
+hex_string 3e99
+binary_value 011111010011001
+pdIndex 15
+pde contents and valid bit 11010110 1
+pt_num 86
+ptIndex 20
+pte contents and valid bit 11001010 1
+phys_frame_num 74
+offset 25
+phys_addr 0x959
+value 1e
+
+
+./paging-multilevel-translate.py -s 1 
+PDBR: 17  (decimal) [This means the page directory is held in this page]
+
+Virtual Address 6c74: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 6b22: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 03df: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 69dc: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 317a: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 4546: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 2c03: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 7fd7: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 390e: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 748b: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+
+hex_string 6c74
+binary_value 110110001110100
+pdIndex 27
+pde contents and valid bit 10100000 1
+pt_num 32
+ptIndex 3
+pte contents and valid bit 11100001 1
+phys_frame_num 97
+offset 20
+phys_addr 0xc34
+value 06
+
+hex_string 6b22
+binary_value 110101100100010
+pdIndex 26
+pde contents and valid bit 11010010 1
+pt_num 82
+ptIndex 25
+pte contents and valid bit 11000111 1
+phys_frame_num 71
+offset 2
+phys_addr 0x8e2
+value 1a
+
+hex_string 03df
+binary_value 000001111011111
+pdIndex 0
+pde contents and valid bit 11011010 1
+pt_num 90
+ptIndex 30
+pte contents and valid bit 10000101 1
+phys_frame_num 5
+offset 31
+phys_addr 0xbf
+value 0f
+
+hex_string 69dc
+binary_value 110100111011100
+pdIndex 26
+pde contents and valid bit 11010010 1
+pt_num 82
+ptIndex 14
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+hex_string 317a
+binary_value 011000101111010
+pdIndex 12
+pde contents and valid bit 10011000 1
+pt_num 24
+ptIndex 11
+pte contents and valid bit 10110101 1
+phys_frame_num 53
+offset 26
+phys_addr 0x6ba
+value 1e
+
+hex_string 4546
+binary_value 100010101000110
+pdIndex 17
+pde contents and valid bit 10100001 1
+pt_num 33
+ptIndex 10
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+hex_string 2c03
+binary_value 010110000000011
+pdIndex 11
+pde contents and valid bit 11000100 1
+pt_num 68
+ptIndex 0
+pte contents and valid bit 11010111 1
+phys_frame_num 87
+offset 3
+phys_addr 0xae3
+value 16
+
+hex_string 7fd7
+binary_value 111111111010111
+pdIndex 31
+pde contents and valid bit 10010010 1
+pt_num 18
+ptIndex 30
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+hex_string 390e
+binary_value 011100100001110
+pdIndex 14
+pde contents and valid bit 01111111 0
+Fault (page directory entry not valid)
+
+hex_string 748b
+binary_value 111010010001011
+pdIndex 29
+pde contents and valid bit 10000000 1
+pt_num 0
+ptIndex 4
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+./paging-multilevel-translate.py -s 2  
+PDBR: 122  (decimal) [This means the page directory is held in this page]
+
+Virtual Address 7570: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 7268: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 1f9f: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 0325: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 64c4: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 0cdf: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 2906: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 7a36: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 21e1: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+Virtual Address 5149: Translates To What Physical Address (And Fetches what Value)? Or Fault?
+
+hex_string 7570
+binary_value 111010101110000
+pdIndex 29
+pde contents and valid bit 10110011 1
+pt_num 51
+ptIndex 11
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+hex_string 7268
+binary_value 111001001101000
+pdIndex 28
+pde contents and valid bit 11011110 1
+pt_num 94
+ptIndex 19
+pte contents and valid bit 11100101 1
+phys_frame_num 101
+offset 8
+phys_addr 0xca8
+value 16
+
+hex_string 1f9f
+binary_value 001111110011111
+pdIndex 7
+pde contents and valid bit 10101111 1
+pt_num 47
+ptIndex 28
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+hex_string 0325
+binary_value 000001100100101
+pdIndex 0
+pde contents and valid bit 10000010 1
+pt_num 2
+ptIndex 25
+pte contents and valid bit 11011101 1
+phys_frame_num 93
+offset 5
+phys_addr 0xba5
+value 0b
+
+hex_string 64c4
+binary_value 110010011000100
+pdIndex 25
+pde contents and valid bit 10111000 1
+pt_num 56
+ptIndex 6
+pte contents and valid bit 01111111 0
+Fault (page table entry not valid)
+
+hex_string 0cdf
+binary_value 000110011011111
+pdIndex 3
+pde contents and valid bit 10011101 1
+pt_num 29
+ptIndex 6
+pte contents and valid bit 10010111 1
+phys_frame_num 23
+offset 31
+phys_addr 0x2ff
+value 00
+
+hex_string 2906
+binary_value 010100100000110
+pdIndex 10
+pde contents and valid bit 01111111 0
+Fault (page directory entry not valid)
+
+hex_string 7a36
+binary_value 111101000110110
+pdIndex 30
+pde contents and valid bit 10001010 1
+pt_num 10
+ptIndex 17
+pte contents and valid bit 11100110 1
+phys_frame_num 102
+offset 22
+phys_addr 0xcd6
+value 09
+
+hex_string 21e1
+binary_value 010000111100001
+pdIndex 8
+pde contents and valid bit 01111111 0
+Fault (page directory entry not valid)
+
+hex_string 5149
+binary_value 101000101001001
+pdIndex 20
+pde contents and valid bit 10111011 1
+pt_num 59
+ptIndex 10
+pte contents and valid bit 10000001 1
+phys_frame_num 1
+offset 9
+phys_addr 0x29
+value 1b
+
+3. Given your understanding of how cache memory works, how do
+you think memory references to the page table will behave in the cache? 
+Will they lead to lots of cache hits (and thus fast accesses?)
+Or lots of misses (and thus slow accesses)?
+
+Lots of cache hits because of space locality since page directory entries
+or page table entries are contiguous to each other so whenever we add
+to cache a chunk of memory for one page directory/table entry we add also
+most of the following page entries if the cache is big enough 
+(similar to page size 4k).
+Page directory fits also temporal locality since it will be accessed at every
+TLB miss.

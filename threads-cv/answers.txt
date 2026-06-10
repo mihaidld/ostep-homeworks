@@ -1,0 +1,152 @@
+Homework (Code)
+This homework lets you explore some real code that uses locks and
+condition variables to implement various forms of the producer/consumer
+queue discussed in the chapter. You’ll look at the real code, run it in
+various configurations, and use it to learn about what works and what
+doesn’t, as well as other intricacies. Read the README for details.
+
+
+Questions
+1. Our first question focuses on main-two-cvs-while.c (the working solution). 
+First, study the code. 
+Do you think you have an understanding of what should happen 
+when you run the program?
+
+
+2. Run with one producer and one consumer, and have the producer
+produce a few values. Start with a buffer (size 1), and then increase it. 
+How does the behavior of the code change with larger buffers?
+(or does it?) 
+
+./main-two-cvs-while -l 10 -m 1 -p 1 -c 1 -v
+./main-two-cvs-while -l 10 -m 2 -p 1 -c 1 -v
+./main-two-cvs-while -l 10 -m 3 -p 1 -c 1 -v
+When buffer size increases we have less instructions executes since there are less 
+context switches, a producer is allowed to produce more values in sequence, 
+a consumer allowed to consume more before being put to sleep when the buffer
+get full/empty. The limit of instructions in sequence per producer/consumer
+depends more on scheduler and time slice.
+
+What would you predict num_full to be with different buffer sizes 
+(e.g., -m 10) and different numbers of produced items (e.g., -l 100), 
+when you change the consumer sleep string from default (no sleep) 
+to -C 0,0,0,0,0,0,1?
+
+./main-two-cvs-while -l 100 -m 10 -p 1 -c 1 -v -C 0,0,0,0,0,0,1
+Since the consumer will sleep after end of 1st iteration, control is passed to
+producer who doesn't sleep so is allowed to fill the buffer (e.g. 10), then consumer 
+consumes one value, goes to sleep, producer replaces it at that buffer location, 
+consumer consumes it etc.
+
+3. If possible, run the code on different systems (e.g., a Mac and Linux).
+Do you see different behavior across these systems?
+
+./main-two-cvs-while -l 100 -m 10 -p 1 -c 1 -v -C 0,0,0,0,0,0,1
+Same behaviour on Linux and Mac
+
+4. Let’s look at some timings. How long do you think the following execution, 
+with one producer, three consumers, a single-entry shared buffer, 
+and each consumer pausing at point c3 for a second, will take? 
+./main-two-cvs-while -p 1 -c 3 -m 1 -C 0,0,0,1,0,0,0:0,0,0,1,0,0,0:0,0,0,1,0,0,0 -l 10 -v -t
+
+We have loops 10 and each consumer pauses after waiting when it finds buffer empty.
+I have more than 4 cores so threads will run in parallel.
+When the consumers start they find empty buffer, because producer hadn't
+the time to put a value there, so they start awaiting in queue, 
+the producer is allowed to run, signal fill and next consumer in queue awakes from 
+waiting in queue, but must sleep again for 1 seconds before consuming the value, 
+it consumes the value, then goes back to sleep in queue since again buffer is empty,
+the other consumers still sleep since no signal fill from producer, then producer 
+puts a new value, then next consumer in queue awakes after its wait, 
+must sleep again for 1 second etc. So the producer puts quickly a value, but 
+each consumer awaken from signal fill must sleep for 1 seconds before consumption. 
+In total for 10 loops we have more than 10 seconds.
+
+Total time: 10 - 13 seconds
+
+5. Now change the size of the shared buffer to 3 (-m 3). Will this make
+any difference in the total time?
+
+No difference in total time altough buffer of 3 since producer can fill buffer quickly
+with 3 values and awake from wait all 3 consumers which found buffer empty, but each time
+a consumer running, before consumming value, must wait for 1 second so in total
+we still have 10 seconds. 
+
+./main-two-cvs-while -p 1 -c 3 -m 3 -C 0,0,0,1,0,0,0:0,0,0,1,0,0,0:0,0,0,1,0,0,0 -l 10 -v -t
+Total time: 10.05 seconds
+
+6. Now change the location of the sleep to c6 (this models a consumer taking something 
+off the queue and then doing something with it), again using a single-entry buffer. 
+What time do you predict in this case? 
+./main-two-cvs-while -p 1 -c 3 -m 1 -C 0,0,0,0,0,0,1:0,0,0,0,0,0,1:0,0,0,0,0,0,1 -l 10 -v -t
+
+The first consumer in queue is woken after a producer puts a value in buffer, 
+consumes it and signals empty, then goes to sleep for 1 sec. The producer is woken
+and puts another value in buffer which awakes next consumer in queue which consumes it
+and goes to sleep for 1 sec, producer puts another value, 3rd consumer awakes, consumes it
+and goes to sleep for 1 sec. These 3 produce/consumes were very quick since altough
+consumers go to sleep for 1 sec, producer is awaken quickly and next consumer consumes
+it quickly. Then producer puts 4th value, but now all 3 consumers are asleep, the 1
+sec for 1st consumer, next in queue hasn't finished. So first 3 in 1 sec, next 3 in 1 sec,
+next 3 in 1 sec, last value in 1 sec. Total around 4s 
+
+./main-two-cvs-while -p 1 -c 3 -m 1 -C 0,0,0,0,0,0,1:0,0,0,0,0,0,1:0,0,0,0,0,0,1 -l 10 -v -t
+Total time: 5.02 seconds
+
+7. Finally, change the buffer size to 3 again (-m 3). What time do you
+predict now?
+
+The producer fills buffer with 3 values quickly, and awakes from wait sleep 
+all 3 consumers, 1st consumer consumes one quickly, then goes to sleep for 1 sec, 
+next either producer replaces value in buffer or the other consumers consume
+each a value and go to sleep for 1 sec. Then producer fills again the buffer 
+with 3 values while all 3 asleep. In total we still need around 4-5 sec.
+
+./main-two-cvs-while -p 1 -c 3 -m 3 -C 0,0,0,0,0,0,1:0,0,0,0,0,0,1:0,0,0,0,0,0,1 -l 10 -v -t
+Total time: 5.02 seconds
+
+8. Now let’s look at main-one-cv-while.c. Can you configure
+a sleep string, assuming a single producer, one consumer, and a
+buffer of size 1, to cause a problem with this code?
+
+It can be slow, but will run since 1 producer must awake the other consumer
+and consumer will awake the producer so they alternate in filling and empting
+buffer.
+If producer must sleep at p0, altough is fast rest of time,
+the consumer starts, but is very slow and wait for 1 sec from c1-c6
+./main /main-one-cv-while -p 1 -c 1 -m 1 -C 0,1,1,1,1,1,1 -P 1,0,0,0,0,0,0 -l 10 -v -t
+Total time: 46.14 seconds.
+
+9. Now change the number of consumers to two. 
+Can you construct sleep strings for the producer and the consumers so as to cause a
+problem in the code?
+
+./main-one-cv-while -p 1 -c 2 -m 1  -l 1 -v -t  -P 0,0,0,0,0,0,1
+blocks the program altough all values where consumed 
+
+
+10. Now examine main-two-cvs-if.c. 
+Can you cause a problem to happen in this code? 
+Again consider the case where there is only one consumer, 
+and then the case where there is more than one.
+
+./main-two-cvs-if -p 1 -c 1 -m 1 -v -t
+If it works with if and 1 cv, it works also with 2 cvs for 1 producer and 1 consumer
+
+./main-two-cvs-if -p 1 -c 2 -m 1 -l 3 -v -t -C 0:0,0,1
+error: tried to get an empty buffer
+
+11. Finally, examine main-two-cvs-while-extra-unlock.c. 
+What problem arises when you release the lock before doing a put or a get? 
+Can you reliably cause such a problem to happen, given the sleep strings? 
+What bad thing can happen?
+
+If you release lock after checking that buffer if not full any longer for producer
+or not empty any longer (for consumer) you risk finding that state has changed when
+you want to fill or get. e.g. consumer finds it not empty, releases lock, than 
+context switch to another consumer who acquires lock, also finds it not empty, 
+releases lock, consumes it, then context switch to 1st consumer who tries to get,
+but now it's empty.
+To reliably cause this problem we need a sleep between unlock and do_get/do_get, 
+but there is no point there so we hope that OS scheduler will make the context switch
+at that time

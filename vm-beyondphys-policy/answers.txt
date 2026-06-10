@@ -1,0 +1,153 @@
+Homework (Simulation)
+This simulator, paging-policy.py, allows you to play around with
+different page-replacement policies. See the README for details.
+
+Questions
+1. Generate random addresses with the following arguments: -s 0
+-n 10, -s 1 -n 10, and -s 2 -n 10. Change the policy from
+FIFO, to LRU, to OPT. Compute whether each access in said address
+traces are hits or misses.
+
+./paging-policy.py -s 0 -n 10 -p FIFO
+Assuming a replacement policy of FIFO, and a cache of size 3 pages,
+figure out whether each of the following page references hit or miss
+in the page cache.
+
+Access: 8  Compulsory Miss  FirstIn -> [8]
+Access: 7  Compulsory Miss  FirstIn -> [8,7]
+Access: 4  Compulsory Miss  FirstIn -> [8,7,4]
+Access: 2  Compulsory Miss  FirstIn -> [7,4,2] Replaced:8
+Access: 5  Compulsory Miss  FirstIn -> [4,2,5] Replaced:7
+Access: 4  Hit  FirstIn -> [4,2,5]
+Access: 7  Miss  FirstIn -> [2,5,7] Replaced:4
+Access: 3  Compulsory Miss  FirstIn -> [5,7,3] Replaced:2
+Access: 4  Miss  FirstIn -> [7,3,4] Replaced:5
+Access: 5  Miss  FirstIn -> [3,4,5] Replaced:7
+
+./paging-policy.py -s 0 -n 10 -p LRU
+Assuming a replacement policy of FIFO, and a cache of size 3 pages,
+figure out whether each of the following page references hit or miss
+in the page cache.
+
+Access: 8  Compulsory Miss  LRU -> [8]
+Access: 7  Compulsory Miss  LRU -> [8,7]
+Access: 4  Compulsory Miss  LRU -> [8,7,4]
+Access: 2  Compulsory Miss  LRU -> [7,4,2] Replaced:8
+Access: 5  Compulsory Miss  LRU -> [4,2,5] Replaced:7
+Access: 4  Hit  LRU -> [2,5,4]
+Access: 7  Miss  LRU -> [5,4,7] Replaced:2
+Access: 3  Compulsory Miss  LRU -> [4,7,3] Replaced:5
+Access: 4  Hit  LRU -> [7,3,4]
+Access: 5  Miss  LRU -> [3,4,5] Replaced:7
+
+./paging-policy.py -s 0 -n 10 -p OPT
+Assuming a replacement policy of FIFO, and a cache of size 3 pages,
+figure out whether each of the following page references hit or miss
+in the page cache.
+
+Access: 8  Compulsory Miss  Left -> [8]
+Access: 7  Compulsory Miss  Left -> [8,7]
+Access: 4  Compulsory Miss  Left -> [8,7,4] 
+Access: 2  Compulsory Miss  Left -> [7,4,2] Replaced:8
+Access: 5  Compulsory Miss  Left -> [7,4,5] Replaced:2
+Access: 4  Hit  Left -> [7,4,5]
+Access: 7  Hit  Left -> [7,4,5]
+Access: 3  Compulsory Miss  Left -> [4,5,3] Replaced:7
+Access: 4  Hit  Left -> [4,5,3] 
+Access: 5  Hit  Left -> [4,5,3]
+
+2. For a cache of size 5, generate worst-case address reference streams
+for each of the following policies: FIFO, LRU, and MRU (worst-case
+reference streams cause the most misses possible). 
+For the worst case reference streams, how much bigger of a cache is needed 
+to improve performance dramatically and approach OPT?
+
+./paging-policy.py -C 5 -p FIFO -c -a 0,1,2,3,4,5,0,1,2,3,4,5
+FINALSTATS hits 0   misses 12   hitrate 0.00
+
+./paging-policy.py -C 5 -p LRU -c -a 0,1,2,3,4,5,0,1,2,3,4,5
+FINALSTATS hits 0   misses 12   hitrate 0.00
+
+./paging-policy.py -C 5 -p MRU -c -a 0,1,2,3,4,5,4,5,4,5,4,5
+FINALSTATS hits 0   misses 12   hitrate 0.00
+
+Since I am using stream of 12 addresses (6 unique) a cache of 6 improves 
+performance and reaches OPT since there will be 6 compulsory misses and 6 hits
+
+3. Generate a random trace (i.e., use python and write a script that
+outputs random addresses, which you can then feed into the simulator). 
+How would you expect the different policies to perform on
+such a trace?
+
+I used a stream of 10000 addresses (from 10 unique ones) with default cache 3. 
+Since they are generated at random there is no locality present usually in
+programs so replacement policies based on history like Clock, LRU, 
+MRU and FIFO or Random should should perform all the same. 
+
+./paging-policy.py -f rand.txt -c -p FIFO
+FINALSTATS hits 2991   misses 7009   hitrate 29.91
+
+./paging-policy.py -f rand.txt -c -p LRU
+FINALSTATS hits 2989   misses 7011   hitrate 29.89
+
+./paging-policy.py -f rand.txt -c -p MRU
+FINALSTATS hits 3040   misses 6960   hitrate 30.40
+
+./paging-policy.py -f rand.txt -c -p CLOCK
+FINALSTATS hits 3031   misses 6969   hitrate 30.31
+
+./paging-policy.py -f rand.txt -c -p RAND
+FINALSTATS hits 2960   misses 7040   hitrate 29.60
+
+./paging-policy.py -f rand.txt -c -p OPT
+FINALSTATS hits 5190   misses 4810   hitrate 51.90
+
+4. Now generate a trace with some locality. 
+How can you generate such a trace? 
+How does LRU perform on it? How much better than RAND is LRU? How does CLOCK do? 
+How about CLOCK with different numbers of clock bits?
+
+I used a stream of 10000 addresses (from 10 unique ones) with default cache 3. 
+We can simulate temporal locality by creating random sequences of 3 of the same page number (temp.txt)
+and space locality by creating sequences of consecutive page numbers (space.txt)
+
+./paging-policy.py -f temp.txt -c -p RAND
+FINALSTATS hits 7645   misses 2355   hitrate 76.45
+
+./paging-policy.py -f temp.txt -c -p LRU
+FINALSTATS hits 7630   misses 2370   hitrate 76.30
+
+./paging-policy.py -f temp.txt -c -p CLOCK
+FINALSTATS hits 7624   misses 2376   hitrate 76.24
+
+./paging-policy.py -f space.txt -c -p RAND
+FINALSTATS hits 2517   misses 7483   hitrate 25.17
+
+./paging-policy.py -f space.txt -c -p LRU 
+FINALSTATS hits 2176   misses 7824   hitrate 21.76
+
+./paging-policy.py -f space.txt -c -p CLOCK
+FINALSTATS hits 2529   misses 7471   hitrate 25.29
+
+./paging-policy.py -f space.txt -c -p CLOCK -b 0
+FINALSTATS hits 2544   misses 7456   hitrate 25.44
+
+./paging-policy.py -f space.txt -c -p CLOCK -b 1
+FINALSTATS hits 2485   misses 7515   hitrate 24.85
+
+./paging-policy.py -f space.txt -c -p CLOCK -b 2
+FINALSTATS hits 2529   misses 7471   hitrate 25.29
+
+Surprisingly LRU or CLOCK don't perform better than RAND in this simulation.
+
+5. Use a program like valgrind to instrument a real application and
+generate a virtual page reference stream. 
+For example, running valgrind --tool=lackey --trace-mem=yes ls 
+will output a nearly-complete reference trace of every instruction and data reference 
+made by the program ls. 
+To make this useful for the simulator above, you’ll have to first transform each virtual memory
+reference into a virtual page-number reference (done by masking
+off the offset and shifting the resulting bits downward). How big
+of a cache is needed for your application trace in order to satisfy a
+large fraction of requests? 
+Plot a graph of its working set as the size of the cache increases.

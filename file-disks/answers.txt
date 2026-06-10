@@ -1,0 +1,309 @@
+Homework (Simulation)
+This homework uses disk.py to familiarize you with how a modern
+hard drive works. It has a lot of different options, and unlike most of
+the other simulations, has a graphical animator to show you exactly what
+happens when the disk is in action. See the README for details.
+
+1. Compute the seek, rotation, and transfer times for the following sets of requests:
+-a 0, -a 6, -a 30, -a 7,30,8, and finally -a 10,11,12,13.
+
+./disk.py -a 0 -G
+TOTALS      Seek:  0  Rotate:165  Transfer: 30  Total: 195
+
+ ./disk.py -a 6 -G
+TOTALS      Seek:  0  Rotate:345  Transfer: 30  Total: 375
+Heads starts in middle of 6, but read starts halfway between 5 and 6 so we 
+need to wait for almost full rotation (11.5 x 30 = 345)
+
+./disk.py -a 30 -G
+TOTALS      Seek:  80(40*2)  Rotate:265(345-80) 345 because halfaway between 
+29 and 30  Transfer: 30  Total: 375
+
+./disk.py -a 7,30,8 -G
+7      Seek:  0  Rotate:15  Transfer: 30  Total: 45
+30      Seek:  80 (40*2)  Rotate: 220(10*30-80)  Transfer: 30  Total: 250
+8      Seek:  80  Rotate:310 (30 + 360 because just missed - 80)  Transfer: 30  Total: 195
+TOTALS      Seek:  160  Rotate:545  Transfer: 90  Total: 795
+
+./disk.py -a 10,11,12,13 -G
+10     Seek:  0  Rotate:105(3.5*30)  Transfer: 30  Total: 135
+11     Seek:  0  Rotate: 0  Transfer: 30  Total: 30
+12     Seek:  40  Rotate:320 (360 because just missed - 40)  Transfer: 30  Total: 390
+13     Seek:  0  Rotate:0  Transfer: 30  Total: 30
+TOTALS      Seek:  40  Rotate:425  Transfer: 120  Total: 585
+
+
+2. Do the same requests above, but change the seek rate to different values: -S
+2, -S 4, -S 8, -S 10, -S 40, -S 0.1. How do the times change?
+
+Seek rate of 2 means distance of 40 to change track will be travelled
+in 40/2 =20 time units so whenever just missed before this time we might 
+not need to wait again for almost full rotation
+
+./disk.py -a 7,30,8 -S 2 -G
+7      Seek:  0  Rotate:15  Transfer: 30  Total: 45
+30      Seek:  40 (20*2)  Rotate: 260(10*30-40)  Transfer: 30  Total: 330
+8      Seek:  40  Rotate:350 (30 + 360 because just missed - 40)  Transfer: 30  Total: 420
+TOTALS      Seek:  80  Rotate:625  Transfer: 90  Total: 795 
+
+-> Same as -S 1
+
+seek time 40/10 = 4 time units 
+./disk.py -a 7,30,8 -S 10 -G
+7      Seek:  0  Rotate:15  Transfer: 30  Total: 45
+30      Seek:  8 (4*2)  Rotate: 292(10*30-8)  Transfer: 30  Total: 330
+8      Seek:  8  Rotate:22 (30 - 8)  Transfer: 30  Total: 60
+TOTALS      Seek:  16  Rotate:329  Transfer: 90  Total: 435 
+
+-> Much better
+
+
+seek time 40/0.1 = 400 time units 
+./disk.py -a 7,30,8 -S 0.1 -G
+7      Seek:  0  Rotate:15  Transfer: 30  Total: 45
+30      Seek:  800 (400*2)  Rotate: 220(10*30+360+360-800) 
+10 places plus 2 rotations to go above seek time 800  Transfer: 30  Total: 1050
+8      Seek:  800  Rotate:310 (30 + 360 + 360 + 360 - 800)  Transfer: 30  Total: 1140
+TOTALS      Seek:  16  Rotate:329  Transfer: 90  Total: 435 
+
+-> Much worse since seek rate slow
+
+
+For sequential 10,11,12,13 on different tracks without skew no improvement
+in rotational delay since miss and need to wait for full rotation, but still
+worse when need to change track if seek rate is low
+
+./disk.py -a 10,11,12,13 -G -S 40
+10     Seek:  0  Rotate:105(3.5*30)  Transfer: 30  Total: 135
+11     Seek:  0  Rotate: 0  Transfer: 30  Total: 30
+12     Seek:  1  Rotate:359 (360 because just missed - 1)  Transfer: 30  Total: 390
+13     Seek:  0  Rotate:0  Transfer: 30  Total: 30
+TOTALS      Seek:  1  Rotate:464  Transfer: 120  Total: 585
+
+./disk.py -a 10,11,12,13 -G -S 0.1
+Block:  10  Seek:  0  Rotate:105  Transfer: 30  Total: 135
+Block:  11  Seek:  0  Rotate:  0  Transfer: 30  Total:  30
+Block:  12  Seek:401  Rotate:319  Transfer: 30  Total: 750
+Block:  13  Seek:  0  Rotate:  0  Transfer: 30  Total:  30
+
+TOTALS      Seek:401  Rotate:424  Transfer:120  Total: 945
+
+
+3. Do the same requests above, but change the rotation rate: -R 0.1, -R 0.5,
+-R 0.01. How do the times change?
+
+./disk.py -a 7,30,8 -R 0.1 -G
+Rotation rate is now slower: time units multiplied by 10, transfer time also
+multiplied by 10. 0.1 degrees per time unit so full revolution 360 * 10 = 3600 
+and each sector is transfered in 300.
+
+7      Seek:  0  Rotate:150  Transfer: 300  Total: 180
+30      Seek:  80 (40*2)  Rotate: 2920(10*300-80)  Transfer: 300  Total: 3300
+8      Seek:  80  Rotate:220 (300 - 80)  Transfer: 300  Total: 600
+TOTALS      Seek:  160  Rotate:3290  Transfer: 900  Total: 4350
+
+./disk.py -a 10,11,12,13 -R 0.1 -G
+
+10     Seek:  0  Rotate:1050(3.5*300)  Transfer: 300  Total: 1350
+11     Seek:  0  Rotate: 0  Transfer: 300  Total: 300
+12     Seek:  40  Rotate:3560 (3600 because just missed - 40)  Transfer: 300  Total: 3900
+13     Seek:  0  Rotate:0  Transfer: 300  Total: 300
+TOTALS      Seek: 40  Rotate:4610  Transfer:1200  Total:5850
+
+4. FIFO is not always best, e.g., with the request stream -a 7,30,8, 
+what order should the requests be processed in? 
+Run the shortest seek-time first (SSTF) scheduler (-p SSTF) on this workload; 
+how long should it take (seek, rotation, transfer) for each request 
+to be served?
+
+Best in order 7,8,30
+
+./disk.py -a 7,30,8 -p SSTF -G  
+Block:   7  Seek:  0  Rotate: 15  Transfer: 30  Total:  45
+Block:   8  Seek:  0  Rotate:  0  Transfer: 30  Total:  30
+Block:  30  Seek: 80  Rotate: 190 (9*30-80)  Transfer: 30  Total: 300
+
+TOTALS      Seek: 80  Rotate:205  Transfer: 90  Total: 375
+
+Better than 795 with FIFO  because no seek waisted to go from 7 to 30
+and back to 8, ans no rotation wasted since 7, 8 sequential
+
+
+5. Now use the shortest access-time first (SATF) scheduler (-p SATF). 
+Does it make any difference for -a 7,30,8 workload? 
+Find a set of requests where SATF outperforms SSTF; 
+more generally, when is SATF better than SSTF?
+
+./disk.py -a 7,30,8 -p SATF -G
+Block:   7  Seek:  0  Rotate: 15  Transfer: 30  Total:  45
+Block:   8  Seek:  0  Rotate:  0  Transfer: 30  Total:  30
+Block:  30  Seek: 80  Rotate:190  Transfer: 30  Total: 300
+
+TOTALS      Seek: 80  Rotate:205  Transfer: 90  Total: 375
+Same since order again 7,8,30
+
+./disk.py -a 7,22,1 -p SSTF -G  
+Block:   7  Seek:  0  Rotate: 15  Transfer: 30  Total:  45
+Block:   1  Seek:  0  Rotate:150  Transfer: 30  Total: 180
+Block:  22  Seek: 40  Rotate:200  Transfer: 30  Total: 270
+
+TOTALS      Seek: 40  Rotate:365  Transfer: 90  Total: 495
+
+./disk.py -a 7,22,1 -p SATF -G 
+Block:   7  Seek:  0  Rotate: 15  Transfer: 30  Total:  45
+Block:  22  Seek: 40  Rotate: 20  Transfer: 30  Total:  90
+Block:   1  Seek: 40  Rotate: 20  Transfer: 30  Total:  90
+
+TOTALS      Seek: 80  Rotate: 55  Transfer: 90  Total: 225 
+
+SATF better than SSTF when seek rate is high so easy to change tracks
+or we sectors on same track are far away so we need to wait for almost
+a revolution before changing tracks when it would have been better to 
+change tracks to service requests for other blocks and come back.
+
+6. Here is a request stream to try: -a 10,11,12,13. What goes poorly when
+it runs? Try adding track skew to address this problem (-o skew). Given
+the default seek rate, what should the skew be to maximize performance?
+What about for different seek rates (e.g., -S 2, -S 4)? In general, could
+you write a formula to figure out the skew?
+
+./disk.py -a 10,11,12,13 -G
+10     Seek:  0  Rotate:105(3.5*30)  Transfer: 30  Total: 135
+11     Seek:  0  Rotate: 0  Transfer: 30  Total: 30
+12     Seek:  40  Rotate:320 (360 because just missed - 40)  Transfer: 30  Total: 390
+13     Seek:  0  Rotate:0  Transfer: 30  Total: 30
+TOTALS      Seek:  40  Rotate:425  Transfer: 120  Total: 585
+
+./disk.py -a 10,11,12,13 -o 2 -G
+Block:  10  Seek:  0  Rotate:105  Transfer: 30  Total: 135
+Block:  11  Seek:  0  Rotate:  0  Transfer: 30  Total:  30
+Block:  12  Seek: 40  Rotate:  20 (2*30 - 40)  Transfer: 30  Total:  90
+Block:  13  Seek:  0  Rotate:  0  Transfer: 30  Total:  30
+
+TOTALS      Seek: 40  Rotate:125  Transfer:120  Total: 285
+
+-o skew Amount of skew (in blocks)
+For seek rate of 1, distance of 40 takes 40 time units, while rotation for 
+1 block is 30 so need to skew by more than 1 block to catch 12 after 
+changing track. For seek rate 1 and rotation rate 1 skew must be 2 to 
+maximize performance for sequential.
+
+For seek rate 2 it takes 20 time units to change track and 
+with rotation 1 30 time units for a sector so skew 1 is sufficient
+
+./disk.py -a 10,11,12,13 -S 2 -o 1 -G
+Block:  10  Seek:  0  Rotate:105  Transfer: 30  Total: 135
+Block:  11  Seek:  0  Rotate:  0  Transfer: 30  Total:  30
+Block:  12  Seek: 20  Rotate: 10  Transfer: 30  Total:  60
+Block:  13  Seek:  0  Rotate:  0  Transfer: 30  Total:  30
+
+TOTALS      Seek: 20  Rotate:115  Transfer:120  Total: 255
+
+time to change track = 40/seek rate 
+time to rotate block = 30/rotation rate
+skew = ceiling(time to change track / time to rotate block)
+
+7. Specify a disk with different density per zone, e.g., -z 10,20,30, which
+specifies the angular difference between blocks on the outer, middle, and
+inner tracks. Run some random requests (e.g., -a -1 -A 5,-1,0, which
+specifies that random requests should be used via the -a -1 flag and that
+five requests ranging from 0 to the max be generated), and compute the
+seek, rotation, and transfer times. Use different random seeds. What is the
+bandwidth (in sectors per unit time) on the outer, middle, and inner tracks?
+
+./disk.py -z 10,20,30 -a -1 -A 5,-1,0 -G
+Block:  45  Seek: 40  Rotate:310  Transfer: 20  Total: 370
+Block:  40  Seek:  0  Rotate:240  Transfer: 20  Total: 260
+Block:  22  Seek: 40  Rotate: 85  Transfer: 10  Total: 135
+Block:  13  Seek:  0  Rotate:260  Transfer: 10  Total: 270
+Block:  27  Seek:  0  Rotate:130  Transfer: 10  Total: 140
+
+TOTALS      Seek: 80  Rotate:1025  Transfer: 70  Total:1175
+
+Bandwidth outer (22,13,27) = 3/(135+270+140)=0.005
+Bandwidth middle (45,40) = 2/(370+260) = 0.003
+
+./disk.py -z 10,20,30 -a -1 -A 5,-1,0 -s 7 -G
+Block:  17  Seek:  0  Rotate:345  Transfer: 10  Total: 355
+Block:   8  Seek:  0  Rotate:260  Transfer: 10  Total: 270
+Block:  35  Seek:  0  Rotate:260  Transfer: 10  Total: 270
+Block:   3  Seek:  0  Rotate: 30  Transfer: 10  Total:  40
+Block:  28  Seek:  0  Rotate:240  Transfer: 10  Total: 250
+
+TOTALS      Seek:  0  Rotate:1135  Transfer: 50  Total:1185
+Bandwidth outer (all) = 5/1185=0.004
+
+ ./disk.py -z 10,20,30 -a -1 -A 5,67,0 -s 1 -G
+Block:   9  Seek:  0  Rotate:265  Transfer: 10  Total: 275
+Block:  56  Seek: 80  Rotate:230  Transfer: 30  Total: 340
+Block:  51  Seek: 40  Rotate:175  Transfer: 20  Total: 235
+Block:  17  Seek: 40  Rotate:175  Transfer: 10  Total: 225
+Block:  33  Seek:  0  Rotate:150  Transfer: 10  Total: 160
+
+TOTALS      Seek:160  Rotate:995  Transfer: 80  Total:1235
+Bandwidth outer (9,17,33) = 3/(275+225+160)=0.004
+Bandwidth middle (51) = 1/235 = 0.004
+Bandwidth inner (56) = 1/340 = 0.002
+
+8. A scheduling window determines how many requests the disk can examine
+at once. Generate random workloads (e.g., -A 1000,-1,0, with different
+seeds) and see how long the SATF scheduler takes when the scheduling window
+is changed from 1 up to the number of requests. How big of a window
+is needed to maximize performance? Hint: use the -c flag and don’t turn
+on graphics (-G) to run these quickly. When the scheduling window is set
+to 1, does it matter which policy you are using?
+
+
+./disk.py -a -1 -A 1000,-1,0  -p SATF -w -1 -s 1 -c
+TOTALS      Seek:400  Rotate:5435  Transfer:30000  Total:35835
+./disk.py -a -1 -A 1000,-1,0  -p SATF -w 500 -s 1 -c
+TOTALS      Seek:400  Rotate:5435  Transfer:30000  Total:35835
+./disk.py -a -1 -A 1000,-1,0  -p SATF -w 100 -s 1 -c
+TOTALS      Seek:760  Rotate:6485  Transfer:30000  Total:37245
+./disk.py -a -1 -A 1000,-1,0  -p SATF -w 50 -s 1 -c
+TOTALS      Seek:1600  Rotate:8375  Transfer:30000  Total:39975
+./disk.py -a -1 -A 1000,-1,0  -p SATF -w 10 -s 1 -c
+TOTALS      Seek:7840  Rotate:25895  Transfer:30000  Total:63735
+./disk.py -a -1 -A 1000,-1,0  -p SATF -w 1 -s 1 -c
+TOTALS      Seek:19640  Rotate:169555  Transfer:30000  Total:219195
+
+A window of 50 is sufficient to maximize performance for 1000 requests
+(39975 time for window of 50 vs 35835 for window of 1000).
+
+When the scheduling window is set to 1, it doesn't it matter 
+which policy you are using, they all look at next request like FIFO.
+
+9. Create a series of requests to starve a particular request, 
+assuming an SATF policy. Given that sequence, how does it perform 
+if you use a bounded SATF (BSATF) scheduling approach? 
+In this approach, you specify the scheduling window (e.g., -w 4); 
+the scheduler only moves onto the next
+window of requests when all requests in the current window have been serviced.
+Does this solve starvation? How does it perform, as compared to
+SATF? In general, how should a disk make this trade-off between performance
+and starvation avoidance?
+
+./disk.py -a 1,35,24,25,26,27,28,29,30,31,32,33,34 -G -p SATF
+TOTALS      Seek:160  Rotate: 35  Transfer:390  Total: 585
+->request 1 is starved (serviced last) altough if came first
+
+./disk.py -a 1,35,24,25,26,27,28,29,30,31,32,33,34 -G -p BSATF -w 4
+TOTALS      Seek:240  Rotate:585  Transfer:390  Total:1215
+-> request 1 still ends up serviced last, but only inside its window of 4,
+since the others are close together sequential. Total time is worse 
+since we loose sequential service on same track when we need to make sure 
+that 1 is serviced.
+
+A larger window improves performance, but increases risk of starvation
+so need to find right window size to maximize performance and minimize
+starvation.
+
+10. All the scheduling policies we have looked at thus far are greedy; 
+they pick the next best option instead of looking for an optimal schedule. 
+Can you find a set of requests in which greedy is not optimal?
+
+./disk.py -a 10,21 -G -p SATF
+TOTALS      Seek: 80  Rotate:355  Transfer: 60  Total: 495
+
+./disk.py -a 10,21 -G -p FIFO
+TOTALS      Seek: 40  Rotate:365  Transfer: 60  Total: 465

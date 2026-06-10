@@ -1,0 +1,637 @@
+Homework (Simulation)
+This section introduces raid.py, a simple RAID simulator you can
+use to shore up your knowledge of how RAID systems work. See the
+README for details.
+
+Questions
+1. Use the simulator to perform some basic RAID mapping tests. Run
+with different levels (0, 1, 4, 5) and see if you can figure out the
+mappings of a set of requests. For RAID-5, see if you can figure out
+the difference between left-symmetric and left-asymmetric layouts.
+Use some different random seeds to generate different problems
+than above.
+
+./raid.py -R 20 -n 5 -L 0 -s 1
+disk  = address % disks 
+offset = address / disks 
+
+2 1
+LOGICAL READ from addr:2 size:4096
+  Physical read disk 2 offset 0 
+
+15 1
+LOGICAL READ from addr:15 size:4096
+  Physical read disk 3 offset 3 
+
+9 1
+LOGICAL READ from addr:9 size:4096
+  Physical read disk 1 offset 2
+
+13 1
+LOGICAL READ from addr:13 size:4096
+  Physical read disk 1 offset 3
+
+1 1
+LOGICAL READ from addr:1 size:4096
+  Physical read disk 1 offset 0
+
+
+./raid.py -R 20 -n 5 -L 1 -s 1
+for even-numbered logical blocks, the RAID chooses the even-numbered 
+disk in the pair;
+the odd disk is used for odd-numbered logical blocks
+
+2 1
+LOGICAL READ from addr:2 size:4096
+  Physical read disk 0 offset 1
+
+15 1
+LOGICAL READ from addr:15 size:4096
+  Physical read disk 3 offset 7
+
+9 1
+LOGICAL READ from addr:9 size:4096
+  Physical read disk 3 offset 4
+
+13 1
+LOGICAL READ from addr:13 size:4096
+  Physical read disk 3 offset 6
+
+1 1
+LOGICAL READ from addr:1 size:4096
+  Physical read disk 3 offset 0
+
+
+./raid.py -R 20 -n 5 -L 4 -s 1
+
+disk  = address % (disks - 1)
+offset = address / (disks - 1)
+-1 for parity disk 
+
+2 1
+LOGICAL READ from addr:2 size:4096
+  Physical read disk 2 offset 0
+
+15 1
+LOGICAL READ from addr:15 size:4096
+  Physical read disk 0 offset 5
+
+9 1
+LOGICAL READ from addr:9 size:4096
+  Physical read disk 0 offset 3
+
+13 1
+LOGICAL READ from addr:13 size:4096
+  Physical read disk 1 offset 4
+
+1 1
+LOGICAL READ from addr:1 size:4096
+  Physical read disk 1 offset 0
+
+
+./raid.py -R 20 -n 5 -L 5 -s 1  
+LS by default left symmetry
+
+Disk0 Disk1 Disk2 Disk3
+0       1   2       P0
+4       5   P1      3
+8       P2  6       7
+P3      9   10      11
+12      13  14      P4  
+16      17  P5      15    
+
+2 1
+LOGICAL READ from addr:2 size:4096
+  Physical read disk 2 offset 0
+
+15 1
+LOGICAL READ from addr:15 size:4096
+  Physical read disk 3 offset 5
+
+9 1
+LOGICAL READ from addr:9 size:4096
+  Physical read disk 1 offset 3
+
+13 1
+LOGICAL READ from addr:13 size:4096
+  Physical read disk 1 offset 4
+
+1 1
+LOGICAL READ from addr:1 size:4096
+  Physical read disk 1 offset 0
+
+./raid.py -R 20 -n 5 -L 5 -s 1 -5 LA -c
+left asymmetry
+
+Disk0 Disk1 Disk2 Disk3
+0       1   2       P0
+3       4   P1      5
+6       P2  7       8
+P3      9   10      11
+12      13  14      P4  
+15      16  P5      17    
+
+2 1
+LOGICAL READ from addr:2 size:4096
+  Physical read disk 2 offset 0
+
+15 1
+LOGICAL READ from addr:15 size:4096
+  Physical read disk 0 offset 5
+
+9 1
+LOGICAL READ from addr:9 size:4096
+  Physical read disk 1 offset 3
+
+13 1
+LOGICAL READ from addr:13 size:4096
+  Physical read disk 1 offset 4
+
+1 1
+LOGICAL READ from addr:1 size:4096
+  Physical read disk 1 offset 0
+
+Difference between left-symmetric and left-asymmetric layouts:
+in both cases we have rotation of parity blocks North-East -> South-West,
+then after stripe where parity block in disk 0, we start all over again 
+with next parity block in last disk. 
+The difference is with LS on a stripe we start counting to the right of 
+parity block e.g. 4 5 P1 3 while with LA we count normaly left to right
+skipping parity blocks e.g. 3 4 P1 5.
+
+
+2. Do the same as the first problem, but this time vary the chunk size
+with -C. How does chunk size change the mappings?
+
+./raid.py -R 20 -n 5 -s 1 -L 0 -C 8k -c
+chunk of 2 blocks
+2 
+LOGICAL READ from addr:2 size:4096
+  read  [disk 1, offset 0]  
+
+15 1
+LOGICAL READ from addr:15 size:4096
+  read  [disk 3, offset 3]  
+
+9 1
+LOGICAL READ from addr:9 size:4096
+  read  [disk 0, offset 3]  
+
+13 1
+LOGICAL READ from addr:13 size:4096
+  read  [disk 2, offset 3]  
+
+1 1
+LOGICAL READ from addr:1 size:4096
+  read  [disk 0, offset 1] 
+
+
+
+./raid.py -R 20 -n 5 -s 1 -L 0 -C 16k -c
+chunk of 4 blocks
+
+2 1
+LOGICAL READ from addr:2 size:4096
+  read  [disk 0, offset 2]  
+
+15 1
+LOGICAL READ from addr:15 size:4096
+  read  [disk 3, offset 3]  
+
+9 1
+LOGICAL READ from addr:9 size:4096
+  read  [disk 2, offset 1]  
+
+13 1
+LOGICAL READ from addr:13 size:4096
+  read  [disk 3, offset 1]  
+
+1 1
+LOGICAL READ from addr:1 size:4096
+  read  [disk 0, offset 1]  
+
+With larger chunks we place more blocks in sequence on same disk before 
+using next disk so we improve positioning time, but reduce gains from
+parallelism when accessing sequential r/w 
+
+3. Do the same as above, but use the -r flag to reverse the nature of
+each problem.
+
+./raid.py -R 20 -n 5 -L 0 -s 1 -r
+
+LOGICAL OPERATION is 2
+  read  [disk 2, offset 0]  
+
+LOGICAL OPERATION is 15
+  read  [disk 3, offset 3]  
+
+LOGICAL OPERATION is 9
+  read  [disk 1, offset 2]  
+
+LOGICAL OPERATION is 13
+  read  [disk 1, offset 3]  
+
+LOGICAL OPERATION is 1
+  read  [disk 1, offset 0]  
+
+./raid.py -R 20 -n 5 -L 1 -s 1 -r
+
+LOGICAL OPERATION is 2
+  read  [disk 1, offset 1]  
+
+LOGICAL OPERATION is 15
+  read  [disk 3, offset 7]  
+
+LOGICAL OPERATION is 9
+  read  [disk 2, offset 4]  
+
+LOGICAL OPERATION is 13
+  read  [disk 2, offset 6]  
+
+LOGICAL OPERATION is 1
+  read  [disk 2, offset 0]  
+
+./raid.py -R 20 -n 5 -L 4 -s 1 -r
+
+LOGICAL OPERATION is 2
+  read  [disk 2, offset 0]  
+LOGICAL OPERATION is 15
+  read  [disk 0, offset 5]  
+LOGICAL OPERATION is 9
+  read  [disk 0, offset 3]  
+LOGICAL OPERATION is 13
+  read  [disk 1, offset 4]  
+LOGICAL OPERATION is 1
+  read  [disk 1, offset 0]  
+
+./raid.py -R 20 -n 5 -L 5 -s 1 -r
+
+
+LOGICAL READ from addr:2 size:4096
+  read  [disk 2, offset 0]  
+LOGICAL READ from addr:15 size:4096
+  read  [disk 3, offset 5]  
+LOGICAL READ from addr:9 size:4096
+  read  [disk 1, offset 3]  
+LOGICAL READ from addr:13 size:4096
+  read  [disk 1, offset 4]  
+LOGICAL READ from addr:1 size:4096
+  read  [disk 1, offset 0]  
+
+4. Now use the reverse flag but increase the size of each request with
+the -S flag. Try specifying sizes of 8k, 12k, and 16k, while varying
+the RAID level. What happens to the underlying I/O pattern when
+the size of the request increases? Make sure to try this with the
+sequential workload too (-W sequential); for what request sizes
+are RAID-4 and RAID-5 much more I/O efficient?
+
+When incresing size of request random requests become more and more sequential
+since whe  requesting for a certain address we request that block plus
+following ones (e.g. request size 16k = 4 blocks). 
+When we have sequential workload altough there might be 5 requests,
+it's actually one sequential workload of blocks 0,1,2,3,4,5 etc.  
+
+RAID-4 and RAID-5 are much more I/O efficient for request sizes of 12k
+since they can use parallelism (access all data blocks in parallel)
+
+./raid.py -R 20 -n 5 -L 0 -s 1 -r -S 8k -c
+
+LOGICAL READ from addr:2 size:8192
+  read  [disk 2, offset 0]  
+  read  [disk 3, offset 0]  
+
+LOGICAL READ from addr:15 size:8192
+  read  [disk 3, offset 3]  
+  read  [disk 0, offset 4]  
+
+LOGICAL READ from addr:9 size:8192
+  read  [disk 1, offset 2]  
+  read  [disk 2, offset 2]  
+
+LOGICAL READ from addr:13 size:8192
+  read  [disk 1, offset 3]  
+  read  [disk 2, offset 3]  
+
+LOGICAL READ from addr:1 size:8192
+  read  [disk 1, offset 0]  
+  read  [disk 2, offset 0]  
+
+./raid.py -R 20 -n 5 -L 0 -s 1 -r -S 16k -c
+LOGICAL READ from addr:2 size:16384
+  read  [disk 2, offset 0]  
+  read  [disk 3, offset 0]  
+  read  [disk 0, offset 1]  
+  read  [disk 1, offset 1]  
+
+LOGICAL READ from addr:15 size:16384
+  read  [disk 3, offset 3]  
+  read  [disk 0, offset 4]  
+  read  [disk 1, offset 4]  
+  read  [disk 2, offset 4]  
+
+LOGICAL READ from addr:9 size:16384
+  read  [disk 1, offset 2]  
+  read  [disk 2, offset 2]  
+  read  [disk 3, offset 2]  
+  read  [disk 0, offset 3]  
+
+LOGICAL READ from addr:13 size:16384
+  read  [disk 1, offset 3]  
+  read  [disk 2, offset 3]  
+  read  [disk 3, offset 3]  
+  read  [disk 0, offset 4]  
+
+LOGICAL READ from addr:1 size:16384
+  read  [disk 1, offset 0]  
+  read  [disk 2, offset 0]  
+  read  [disk 3, offset 0]  
+  read  [disk 0, offset 1]
+
+./raid.py -R 20 -n 5 -L 1 -s 1 -r -S 8k -c 
+LOGICAL READ from addr:2 size:8192
+  read  [disk 1, offset 1]  
+  read  [disk 3, offset 1]  
+
+LOGICAL READ from addr:15 size:8192
+  read  [disk 3, offset 7]  
+  read  [disk 0, offset 8]  
+
+LOGICAL READ from addr:9 size:8192
+  read  [disk 2, offset 4]  
+  read  [disk 1, offset 5]  
+
+LOGICAL READ from addr:13 size:8192
+  read  [disk 2, offset 6]  
+  read  [disk 1, offset 7]  
+
+LOGICAL READ from addr:1 size:8192
+  read  [disk 2, offset 0]  
+  read  [disk 1, offset 1]  
+
+./raid.py -R 20 -n 5 -L 1 -s 1 -r -S 16k -c
+
+LOGICAL READ from addr:2 size:16384
+  read  [disk 1, offset 1]  
+  read  [disk 3, offset 1]  
+  read  [disk 0, offset 2]  
+  read  [disk 2, offset 2]  
+
+LOGICAL READ from addr:15 size:16384
+  read  [disk 3, offset 7]  
+  read  [disk 0, offset 8]  
+  read  [disk 2, offset 8]  
+  read  [disk 1, offset 9]  
+
+LOGICAL READ from addr:9 size:16384
+  read  [disk 2, offset 4]  
+  read  [disk 1, offset 5]  
+  read  [disk 3, offset 5]  
+  read  [disk 0, offset 6]  
+
+LOGICAL READ from addr:13 size:16384
+  read  [disk 2, offset 6]  
+  read  [disk 1, offset 7]  
+  read  [disk 3, offset 7]  
+  read  [disk 0, offset 8]  
+
+LOGICAL READ from addr:1 size:16384
+  read  [disk 2, offset 0]  
+  read  [disk 1, offset 1]  
+  read  [disk 3, offset 1]  
+  read  [disk 0, offset 2]  
+
+./raid.py -R 20 -n 5 -L 1 -s 1 -r -S 8k -c -W seq
+
+LOGICAL READ from addr:0 size:8192
+  read  [disk 0, offset 0]  
+  read  [disk 2, offset 0]  
+
+LOGICAL READ from addr:2 size:8192
+  read  [disk 1, offset 1]  
+  read  [disk 3, offset 1]  
+
+LOGICAL READ from addr:4 size:8192
+  read  [disk 0, offset 2]  
+  read  [disk 2, offset 2]  
+
+LOGICAL READ from addr:6 size:8192
+  read  [disk 1, offset 3]  
+  read  [disk 3, offset 3]  
+
+LOGICAL READ from addr:8 size:8192
+  read  [disk 0, offset 4]  
+  read  [disk 2, offset 4]  
+
+5. Use the timing mode of the simulator (-t) to estimate the performance
+of 100 random reads to the RAID, while varying the RAID
+levels, using 4 disks.
+
+./raid.py -R 10000 -n 100 -L 0 -t -c
+disk:0  busy: 100.00  I/Os:    28 (sequential:0 nearly:1 random:27)
+disk:1  busy:  93.91  I/Os:    29 (sequential:0 nearly:6 random:23)
+disk:2  busy:  87.92  I/Os:    24 (sequential:0 nearly:0 random:24)
+disk:3  busy:  65.94  I/Os:    19 (sequential:0 nearly:1 random:18)
+
+STAT totalTime 275.69999999999993
+
+./raid.py -R 10000 -n 100 -L 1 -t -c
+disk:0  busy: 100.00  I/Os:    28 (sequential:0 nearly:1 random:27)
+disk:1  busy:  86.98  I/Os:    24 (sequential:0 nearly:0 random:24)
+disk:2  busy:  97.52  I/Os:    29 (sequential:0 nearly:3 random:26)
+disk:3  busy:  65.23  I/Os:    19 (sequential:0 nearly:1 random:18)
+
+STAT totalTime 278.7
+
+./raid.py -R 10000 -n 100 -L 4 -t -c
+disk:0  busy:  78.48  I/Os:    30 (sequential:0 nearly:0 random:30)
+disk:1  busy: 100.00  I/Os:    40 (sequential:0 nearly:3 random:37)
+disk:2  busy:  76.46  I/Os:    30 (sequential:0 nearly:2 random:28)
+disk:3  busy:   0.00  I/Os:     0 (sequential:0 nearly:0 random:0)
+
+STAT totalTime 386.1000000000002
+
+./raid.py -R 10000 -n 100 -L 5 -t -c
+disk:0  busy: 100.00  I/Os:    28 (sequential:0 nearly:1 random:27)
+disk:1  busy:  95.84  I/Os:    29 (sequential:0 nearly:5 random:24)
+disk:2  busy:  87.60  I/Os:    24 (sequential:0 nearly:0 random:24)
+disk:3  busy:  65.70  I/Os:    19 (sequential:0 nearly:1 random:18)
+
+STAT totalTime 276.7
+
+6. Do the same as above, but increase the number of disks. How does
+the performance of each RAID level scale as the number of disks
+increases?
+
+When we double number of disks performance of RAID 0,1 and 5 almost doubles 
+(time almost halves, t0 x 57%) because we slightly increase proportion of 
+sequential and nearly sequential I/Os in comparizon with random I/Os and 
+sequential have a better performance than random ones.
+For RAID 4 performance also increases by higher factor first and lower
+afterwards.
+
+./raid.py -R 10000 -n 100 -L 0 -t -D 4 -c
+STAT totalTime 275.69999999999993
+
+./raid.py -R 10000 -n 100 -L 0 -t -D 8 -c
+STAT totalTime 156.49999999999994
+
+./raid.py -R 10000 -n 100 -L 0 -t -D 16 -c
+STAT totalTime 86.79999999999998
+
+
+./raid.py -R 10000 -n 100 -L 1 -t -D 4 -c
+STAT totalTime 278.7
+
+./raid.py -R 10000 -n 100 -L 1 -t -D 8 -c
+STAT totalTime 167.79999999999995
+
+./raid.py -R 10000 -n 100 -L 1 -t -D 16 -c
+STAT totalTime 92.79999999999998
+
+
+
+./raid.py -R 10000 -n 100 -L 4 -t -D 4 -c
+STAT totalTime 386.1000000000002
+
+./raid.py -R 10000 -n 100 -L 4 -t -D 8 -c
+STAT totalTime 164.99999999999994
+
+./raid.py -R 10000 -n 100 -L 4 -t -D 16 -c
+STAT totalTime 115.39999999999998
+
+./raid.py -R 10000 -n 100 -L 4 -t -D 32 -c
+STAT totalTime 71.5
+
+
+./raid.py -R 10000 -n 100 -L 5 -t -D 4 -c
+STAT totalTime 276.7
+
+./raid.py -R 10000 -n 100 -L 5 -t -D 8 -c
+STAT totalTime 158.59999999999997
+
+./raid.py -R 10000 -n 100 -L 5 -t -D 16 -c
+STAT totalTime 87.19999999999999
+
+
+7. Do the same as above, but use all writes (-w 100) instead of reads.
+How does the performance of each RAID level scale now? Can you
+do a rough estimate of the time it will take to complete the workload
+of 100 random writes?
+
+No change for RAID 0 with 100% reads or writes.
+./raid.py -R 10000 -n 100 -L 0 -t -w 100 -D 4 -c
+STAT totalTime 275.69999999999993
+
+./raid.py -R 10000 -n 100 -L 0 -t -w 100 -D 8 -c
+STAT totalTime 156.49999999999994
+
+./raid.py -R 10000 -n 100 -L 0 -t -w 100 -D 16 -c
+STAT totalTime 86.79999999999998
+
+For RAID 1 with 100% writes with more disks performace still improves,
+but time is double than 100% reads because, for each logical operation
+we need to perform 2 physical writes.
+
+./raid.py -R 10000 -n 100 -L 1 -t -w 100 -D 4 -c
+STAT totalTime 509.80000000000047
+
+./raid.py -R 10000 -n 100 -L 1 -t -w 100 -D 8 -c
+STAT totalTime 275.69999999999993
+
+./raid.py -R 10000 -n 100 -L 1 -t -w 100 -D 16 -c
+STAT totalTime 156.49999999999994
+
+For RAID 4 with 100% writes we perform 2 reads (old data and parity
+blocks) and 2 writes (new data and parity blocks) so performance is low
+and it very slowly improves altough we double number of disks because of
+parity disk bottleneck
+
+./raid.py -R 10000 -n 100 -L 4 -t -w 100 -D 4 -c 
+STAT totalTime 982.5000000000013
+
+./raid.py -R 10000 -n 100 -L 4 -t -w 100 -D 8 -c 
+STAT totalTime 937.8000000000014
+
+./raid.py -R 10000 -n 100 -L 4 -t -w 100 -D 16 -c 
+STAT totalTime 854.900000000001
+
+For RAID 5 clearly better performance than RAID 4 that improves when 
+we double number of disks, altough remains half performance of 100%
+reads because need to perform first 2 reads (in parallel) and then 
+2 writes (in parallel)
+./raid.py -R 10000 -n 100 -L 5 -t -w 100 -D 4 -c
+STAT totalTime 497.40000000000043
+
+./raid.py -R 10000 -n 100 -L 5 -t -w 100 -D 8 -c
+STAT totalTime 290.9
+
+./raid.py -R 10000 -n 100 -L 5 -t -w 100 -D 16 -c
+STAT totalTime 165.69999999999996
+
+8. Run the timing mode one last time, but this time with a sequential
+workload (-W sequential). How does the performance vary
+with RAID level, and when doing reads versus writes? How about
+when varying the size of each request? What size should you write
+to a RAID when using RAID-4 or RAID-5?
+
+As expected performance doesn't change for any RAID level
+when we compare 100% reads and 100% writes
+
+./raid.py -R 10000 -n 100 -L 0 -t -W seq -c 
+STAT totalTime 12.499999999999991
+
+./raid.py -R 10000 -n 100 -L 0 -t -W seq -w 100 -c
+STAT totalTime 12.499999999999991
+
+./raid.py -R 10000 -n 100 -L 1 -t -W seq -c    
+STAT totalTime 14.899999999999983
+
+./raid.py -R 10000 -n 100 -L 1 -t -W seq -w 100 -c
+STAT totalTime 14.999999999999982
+
+./raid.py -R 10000 -n 100 -L 4 -t -W seq -c      
+STAT totalTime 13.399999999999988
+
+./raid.py -R 10000 -n 100 -L 4 -t -W seq -w 100 -c
+STAT totalTime 13.399999999999988
+
+./raid.py -R 10000 -n 100 -L 5 -t -W seq -c      
+STAT totalTime 13.299999999999988
+
+./raid.py -R 10000 -n 100 -L 5 -t -W seq -w 100 -c
+STAT totalTime 13.399999999999988
+
+./raid.py -R 10000 -n 100 -L 4 -t -W seq -S 4k -w 100 -c
+disk:0  busy: 100.00  I/Os:    68 (sequential:33 nearly:34 random:1)
+disk:1  busy:  99.25  I/Os:    66 (sequential:32 nearly:33 random:1)
+disk:2  busy:  99.25  I/Os:    66 (sequential:32 nearly:33 random:1)
+disk:3  busy: 100.00  I/Os:   200 (sequential:33 nearly:166 random:1)
+STAT totalTime 13.399999999999988
+400/13.39  = 29.87 I/Os
+
+./raid.py -R 10000 -n 100 -L 4 -t -W seq -S 8k -w 100 -c
+disk:0  busy: 100.00  I/Os:   133 (sequential:66 nearly:66 random:1)
+disk:1  busy: 100.00  I/Os:    67 (sequential:66 nearly:0 random:1)
+disk:2  busy: 100.00  I/Os:   133 (sequential:66 nearly:66 random:1)
+disk:3  busy: 100.00  I/Os:   199 (sequential:66 nearly:132 random:1)
+
+STAT totalTime 16.69999999999999
+533 / 16.69 = 11,9832234871
+
+./raid.py -R 10000 -n 100 -L 4 -t -W seq -S 12k -w 100 -c
+disk:0  busy: 100.00  I/Os:   100 (sequential:99 nearly:0 random:1)
+disk:1  busy: 100.00  I/Os:   100 (sequential:99 nearly:0 random:1)
+disk:2  busy: 100.00  I/Os:   100 (sequential:99 nearly:0 random:1)
+disk:3  busy: 100.00  I/Os:   100 (sequential:99 nearly:0 random:1)
+
+STAT totalTime 20.000000000000036
+400/20 = 20
+
+./raid.py -R 10000 -n 100 -L 4 -t -W seq -S 16k -w 100 -c
+disk:0  busy: 100.00  I/Os:   201 (sequential:133 nearly:67 random:1)
+disk:1  busy:  99.57  I/Os:   133 (sequential:132 nearly:0 random:1)
+disk:2  busy:  99.57  I/Os:   199 (sequential:132 nearly:66 random:1)
+disk:3  busy: 100.00  I/Os:   267 (sequential:133 nearly:133 random:1)
+
+STAT totalTime 23.400000000000084
+800/23.4 = 34.18

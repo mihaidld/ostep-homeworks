@@ -1,0 +1,116 @@
+Homework (Simulation)
+This program, lottery.py, allows you to see how a lottery scheduler
+works. See the README for details.
+
+Questions
+1. Compute the solutions for simulations with 3 jobs and random seeds
+of 1, 2, and 3.
+./lottery.py -j 3 -s 1
+Job 0 ( length = 1, tickets = 84 )
+Job 1 ( length = 7, tickets = 25 )
+Job 2 ( length = 4, tickets = 44 )
+153 tickets total
+Random 651593 winner 119 so 2
+Random 788724 winner 9 so 0 which completes
+69 tickets total
+Random 93859 winner 19 so 1
+Random 28347 winner 57 so 2
+Random 835765 winner 37 so 2
+Random 432767 winner 68 so 2 which completes
+25 tickets total
+Random 762280 so 1
+Random 2106 so 1
+Random 445387 so 1
+Random 721540 so 1
+Random 228762 so 1
+Random 945271 so 1 which completes
+
+./lottery.py -j 3 -s 1
+  Job 0 ( length = 9, tickets = 94 )
+  Job 1 ( length = 8, tickets = 73 )
+  Job 2 ( length = 6, tickets = 30 )
+197 ticket total
+Random 605944 w 169 so 2
+Random 606802 w 42 so 0
+Random 581204 w 54 so 0
+Random 158383 w 192 so 2
+Random 430670 w 28 so 0
+Random 393532 w 123 so 1
+Random 723012 w 22 so 0
+Random 994820 w 167 so 2
+Random 949396 w 53 so 0
+Random 544177 w 63 so 0
+Random 444854 w 28 so 0
+Random 268241 w 124 so 1
+Random 35924 w 70 so 0
+Random 27444 w 61 so 0 which completes
+103 tockets total
+Random 464894 w 55 so 1
+Random 318465 w 92 so 2
+Random 380015 w 48 so 1
+Random 891790 w 16 so 1
+Random 525753 w 41 so 1
+Random 560510 w 87 so 2
+Random 236123 w 47 so 1 
+Random 23858 w 65 so 1 which completes
+Random 325143 so 2 which completes
+
+./lottery.py -j 3 -s 3   
+Job 0 ( length = 2, tickets = 54 )
+  Job 1 ( length = 3, tickets = 60 )
+  Job 2 ( length = 6, tickets = 6 )
+Total tickets 120
+Random 13168 w 88 so 1
+Random 837469 w 109 so 1
+Random 259354 w 34 so 0
+Random 234331 w 91 so 1 which completes
+Total tickets 60
+Random 995645 w 5 so 0 which completes
+Random 470263 so 2 till end
+Random 836462
+Random 476353
+Random 639068
+Random 150616
+Random 634861
+
+
+2. Now run with two specific jobs: each of length 10, but one (job 0)
+with 1 ticket and the other (job 1)with 100 (e.g., -l 10:1,10:100).
+What happens when the number of tickets is so imbalanced? Will
+job 0 ever run before? How often? In general, what
+does such a ticket imbalance do to the behavior of lottery scheduling?
+Job 0 has 1/101 chances  = 0.0099 so can run once before job 1 completes.
+Job 0 is starved usually.
+
+3. When running with two jobs of length 100 and equal ticket allocations
+of 100 (-l 100:100,100:100), how unfair is the scheduler?
+Run with some different random seeds to determine the (probabilistic)
+answer; let unfairness be determined by how much earlier one
+job finishes than the other.
+-s 0 difference 8 (JOB 0 DONE at time 192  JOB 1 DONE at time 200)
+-s 1 4
+-s 2 10
+-s 3 4
+-s 4 1
+-s 5 19
+Avg difference 8
+
+4. How does your answer to the previous question change as the quantum
+size (-q) gets larger?
+
+Increases since whenever one is favored it gets an advance of whole 
+time slice e.g for -s 0 diffrence is 50
+
+5. Can you make a version of the graph that is found in the chapter?
+What else would be worth exploring? How would the graph look
+with a stride scheduler?
+
+./lottery.py -l 10:100,10:100 -c -s 0
+F = 15/20=0.75
+./lottery.py -l 100:100,100:100 -c -s 0
+F = 192/200=0.96
+./lottery.py -l 1000:100,1000:100 -c -s 0
+F = 1942/2000=0.97
+
+With a stride scheduler the graph of fairness F should 
+be horizontal line y = 1

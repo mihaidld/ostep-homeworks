@@ -1,0 +1,227 @@
+Homework (Simulation)
+This program, x86.py, allows you to see how different thread interleavings 
+either cause or avoid race conditions. 
+See the README for details on how the program works and answer the questions below.
+
+Questions
+1. Examine flag.s. This code “implements” locking with a single memory
+flag. Can you understand the assembly?
+
+let flag,count
+function main:
+    while(%bx>0):
+        while (flag != 0):
+            ;
+        flag = 1;// acquire lock
+        count++ // critical section
+        flag = 0; //release lock
+
+
+2. When you run with the defaults, does flag.s work? Use the -M and -R
+flags to trace variables and registers (and turn on -c to see their values).
+Can you predict what value will end up in flag?
+
+./x86.py -p flag.s -M flag,count -R bx,ax -c
+flag ends up with 0 since thread 1 sets it to 0 after its critical section
+
+
+3. Change the value of the register %bx with the -a flag (e.g., -a bx=2,bx=2
+if you are running just two threads). What does the code do? How does it
+change your answer for the question above?
+
+Instead of 1 iteration/thread when bx is initialized to 1, we have now 2
+iterations/thread so count reaches 4 (since no interrrupt of one thread  
+with default frequency of 50) and flag still ends up at 0  
+
+
+4. Set bx to a high value for each thread, and then use the -i flag to 
+generate different interrupt frequencies; what values lead to a bad outcomes? 
+Which lead to good outcomes?
+
+./x86.py -p flag.s -a bx=50,bx=50 -M flag,count -R bx,ax -c -i 1
+./x86.py -p flag.s -a bx=50,bx=50 -M flag,count -R bx,ax -c -i 10
+./x86.py -p flag.s -a bx=50,bx=50 -M flag,count -R bx,ax -c -i 11
+./x86.py -p flag.s -a bx=50,bx=50 -M flag,count -R bx,ax -c -i 33
+
+We have 11 instructions in sequence so when interrupt frequency is multiple 
+of 11 we have good outcome (count = sum of bx registers) since threads
+get to complete the critical section during iterations, when not
+we have bad outcomes because threads get interrupter during critical section
+
+5. Now let’s look at the program test-and-set.s. First, try to understand
+the code, which uses the xchg instruction to build a simple locking primitive. How is the lock acquire written? How about lock release?
+
+let mutex,count
+function main:
+    while(%bx>0):
+        while (TestAndSet(&mutex,1) != 0)://atomic swap of 1 and mutex and acquire lock
+            ;
+        count++ // critical section
+        mutex = 0; //release lock
+
+6. Now run the code, changing the value of the interrupt interval (-i) again,
+and making sure to loop for a number of times. Does the code always work
+as expected? Does it sometimes lead to an inefficient use of the CPU? How
+could you quantify that?
+
+Again we have 11 instructions in sequence; whenever interrupt frequency is
+multiple of 11 each thread has enough time to complete the sequence (acquire lock,
+increment count, release lock and update loop). When it isn't each thread 
+gets interrupted during sequence so it must spin during lock acquisition since
+when xchng it finds mutex set to 1 (already locked) so keeps checking (repeats
+the 4 instructions till lock free or timer interrupt)
+
+7. Use the -P flag to generate specific tests of the locking code. 
+For example, run a schedule that grabs the lock in the first thread, 
+but then tries to acquire it in the second. 
+Does the right thing happen? What else should you test?
+
+./x86.py -p test-and-set.s -a bx=10,bx=10 -M mutex,count -R bx,ax -c -P 0000000000011111111111
+./x86.py -p test-and-set.s -a bx=10,bx=10 -M mutex,count -R bx,ax -c -P 00001111
+./x86.py -p test-and-set.s -a bx=10,bx=10 -M mutex,count -R bx,ax -c -P 000000000001111111111111111111111
+
+When each thread is scheduled for a multiple of 11 instructions, we use well
+CPU and get right result. If not we waste CPU and get bad result
+
+8. Now let’s look at the code in peterson.s, which implements Peterson’s
+algorithm (mentioned in a sidebar in the text). 
+Study the code and see if you can make sense of it.
+
+let flag[2],turn,count
+function main:
+    cx = 1 - self// cx  = 0 if self = 1, 1 if self = 0
+    flag[self] = 1;// try to acquire lock, set flag at index of current thread
+    turn  = 1 - self // whose thread is next turn
+    //spin if the other thread acquired lock before and 
+    //turn is still the other one's
+    while(flag[1-self] == 1 && turn == 1-self):
+        ;
+    
+    count++
+    
+    //release lock and make sure turn if other one's so after this unlock
+    it can acquire lock (no more spin because of flag and turn update)
+    flag[self] = 0 
+    turn = 1 - self 
+
+9. Now run the code with different values of -i. What kinds of different 
+behavior do you see? Make sure to set the thread IDs appropriately 
+(using -a bx=0,bx=1 for example) as the code assumes it.
+
+./x86.py -p peterson.s -a bx=0,bx=1 -M flag,turn,count -R cx -i 6 -c
+When a thread 0 sets first its flag to 1 and updates turn to the other one 1
+it has acquired flag since when thread 1 interrupts it sets its flag also
+to 1 and switches turn back to 0. Then, since there is no update of flag and
+turn before unlock, when thread 0 reaches spin loop it finds turn 0 so
+quits loop to continue with critical section, while thread 1 finds both 
+flag set for thread 0 and turn  = 0 so must keep spinning while thread 0
+has not yet unlocked
+
+10. Can you control the scheduling (with the -P flag) to “prove” that the code
+works? What are the different cases you should show hold? 
+Think about mutual exclusion and deadlock avoidance.
+
+There are 17 instructions
+Mutual exclusion test: interrupt thread 0 during critical section 
+(after 11 instructions before store). count is still good 2
+./x86.py -p peterson.s -a bx=0,bx=1 -M flag,turn,count -P 0000000000011111111111 -c 
+
+Deadlock avoidance test: threads would spin forever if for each thread
+flag[1-self] == 1 && turn == 1-self so
+for 0: flag[1] == 1 && turn == 1
+for 1: flag[0] == 1 && turn == 0
+
+Test after 6 instructions when both had updated flag and turn
+./x86.py -p peterson.s -a bx=0,bx=1 -M flag,turn,count -P 000000111111 -c 
+Test after 13 instructions when first one resets its flag back to 0, before 
+updating also turn
+./x86.py -p peterson.s -a bx=0,bx=1 -M flag,turn,count -P 00000000000001111111111111 -c 
+
+11. Now study the code for the ticket lock in ticket.s. 
+Does it match the code in the chapter? 
+Then run with the following flags: -a bx=1000,bx=1000
+(causing each thread to loop through the critical section 1000 times). 
+Watch what happens; do the threads spend much time spin-waiting for the lock?
+
+let ticket,turn,count
+function main:
+    while(%bx>0):
+        ax = FetchAndAdd(&ticket,1) //fetch old value of ticket and increment ticket
+        while (ax != turn)://keep checking it's my turn
+            ;
+        count++ // critical section
+        turn++; //release lock for somebody holding next ticket
+
+When checking if your turn we only get once next ticket then start checking
+value of turn againt old value of ticket so we repeat 3 instructions per
+iteration of spin loop till end of time slice. 
+
+12. How does the code behave as you add more threads?
+
+./x86.py -p ticket.s -t 3 -a bx=10,bx=10,bx=10 -M ticket,turn,count -R ax,bx -i 9 -c
+When we have N threads one is holding the lock, and the other N-1 get next 
+ticket and spin for their time slices, till eexcution goes back to 1st to 
+release lock (increment turn), then this one starts spinning, next in line
+acquires lock and increments counter, next N-2 still spin for their time slices
+so suring each round 1 has the lock and the others use CPU for wait spinning.
+
+13. Now examine yield.s, in which a yield instruction enables one thread
+to yield control of the CPU (realistically, this would be an OS primitive, but
+for the simplicity, we assume an instruction does the task). 
+Find a scenario where test-and-set.s wastes cycles spinning, 
+but yield.s does not.
+How many instructions are saved? In what scenarios do these savings arise?
+
+TestAndSet
+let mutex,count
+function main:
+    while(%bx>0):
+        while (TestAndSet(&mutex,1) != 0)://atomic swap of 1 and mutex and acquire lock
+            ;
+        count++ // critical section
+        mutex = 0; //release lock
+
+Yield
+let mutex,count
+function main:
+    while(%bx>0):
+        while (TestAndSet(&mutex,1) != 0)://atomic swap of 1 and mutex and acquire lock
+            yield
+        count++ // critical section
+        mutex = 0; //release lock
+
+It saves the 4 instructions of TestAndSet(&mutex,1) != 0 during spin wait
+loop iteration which could repeat till end of time slice for thread
+waiting for the lock release. Since in TestAndSet we have 11 instructions
+and no waste when interrupt frequency is multiple of 11, savings arise for
+yield for other cases.
+./x86.py -p yield.s -a bx=10,bx=10 -M mutex,count -R bx,ax -c 
+
+
+14. Finally, examine test-and-test-and-set.s. What does this lock do?
+What kind of savings does it introduce as compared to test-and-set.s?
+
+TestAndSet
+let mutex,count
+function main:
+    while(%bx>0):
+        while (TestAndSet(&mutex,1) != 0)://atomic swap of 1 and mutex and acquire lock
+            ;
+        count++ // critical section
+        mutex = 0; //release lock
+
+TestAndTestAndSet
+let mutex,count
+function main:
+    while(%bx>0):
+        while (mutex!= 0)://spin while mutex isn't 0 (unlocked)
+            ;
+        while (TestAndTestAndSet(&mutex,1) != 0)://atomic swap of 1 and mutex and acquire lock
+            ;
+        count++ // critical section
+        mutex = 0; //release lock
+
+It adds a loop during spin wait to check for mutex being 0, 
+before starting loop with xchg when it checks mutex for 0 and places 1
+there. It avoids writing to mutex multiple times in a loop, it does it
+only when it knows that mutex is 0 (after 1st loop)

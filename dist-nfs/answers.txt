@@ -1,0 +1,742 @@
+Homework (Measurement)
+In this homework, you’ll do a little bit of NFS trace analysis using real
+traces. The source of these traces is Ellard and Seltzer’s effort [ES03].
+Make sure to read the related README and download the relevant tarball
+from the OSTEP homework page (as usual) before starting. One tool
+that might be fun to use during this analysis is the awk programming
+language [AKW88].
+
+Questions
+1. A first question for your trace analysis: using the timestamps found
+in the first column, determine the period of time the traces were
+taken from. How long is the period? What day/week/month/year
+was it? (does this match the hint given in the file name?) Hint: Use
+the tools head -1 and tail -1 to extract the first and last lines of
+the file, and do the calculation.
+
+head -1 sampleTrace.csv 
+748339266.480440 Open READ FID: 321e00000002988b OFF: 0 SIZE: 1011712 HOST: 2082
+tail -1 sampleTrace.csv
+748339384.270743 Block READ FID: 561e00000003601a OFF: 825344 SIZE: 1024 HOST: 4152
+
+748339266 Sat Sep 18 1993 08:01:06 GMT+0000
+748339384 Sat Sep 18 1993 08:03:04 GMT+0000
+Period of 2 minutes 
+
+head -1 HW-NFS-Measure/sample 
+1034787600.773984 31.0320 30.0801 U C3 d2891970 1 getattr fh 1e2f6f00734805002000000000355861bd5ece0a64860000a0cf90002e303000 con = XXX len = XXX
+tail -1 HW-NFS-Measure/sample
+1034787601.433721 30.0801 32.03ff U R3 7635f875 6 read OK ftype 1 mode 180 nlink 1 uid 18a8a gid 18a89 size 1a6725c used 1a6f000 rdev 0 rdev2 0 fsid 8664 fileid 87cd59 atime 1034787601.498001 mtime 1034787315.000000 ctime 1034787588.694020 count 4000 eof 0 status=XXX pl = XXX con = XXX len = XXX
+1034787600: Wed Oct 16 2002 17:00:00 GMT+0000
+1034787601: Wed Oct 16 2002 17:00:01 GMT+0000
+Period of 1 second
+
+awk '(n == 0) {n=1; t0 = $1} (n == 1) {t = $1} END {print t - t0}' HW-NFS-Measure/sample 
+0.659737
+
+2. Now, let’s do some operation counts. How many of each type of operation
+occur in the trace? Sort these by frequency; which operation
+is most frequent? Does NFS live up to its reputation?
+
+wc -l sampleTrace.csv    
+1000
+
+awk '{print $2" "$3}' sampleTrace.csv | sort | uniq
+Attr READ
+Block READ
+Close READ
+Dir READ
+Dir RW
+Open READ
+Open RW
+
+Mostly read attributes (to check for cache consistency), then read data
+blocks because many clients access same files.
+
+grep "Attr READ" sampleTrace.csv | wc -l
+     512
+grep "Block READ" sampleTrace.csv | wc -l
+     389
+grep "Open READ" sampleTrace.csv | wc -l
+      63
+grep "Dir READ" sampleTrace.csv | wc -l
+      19
+grep "Close READ" sampleTrace.csv | wc -l
+      10
+grep "Dir RW" sampleTrace.csv | wc -l
+       6
+grep "Open RW" sampleTrace.csv | wc -l
+       1
+
+wc -l HW-NFS-Measure/sample 
+    1000 HW-NFS-Measure/sample
+
+awk '{print $8}' HW-NFS-Measure/sample | sort -r | uniq -c
+ 494 write
+ 360 read
+ 144 getattr
+   2 access
+
+
+
+3. Now let’s look at some particular operations in more detail. For
+example, the GETATTR request returns a lot of information about
+files, including which user ID the request is being performed for,
+the size of the file, and so forth. Make a distribution of file sizes
+accessed within the trace; what is the average file size? Also, how
+many different users access files in the trace? Do a few users dominate
+traffic, or is it more spread out? What other interesting information
+is found within GETATTR replies?
+
+Most files have size 0 because they are for getting attributes or 1024
+awk '{print $9}' sampleTrace.csv | sort | uniq -c | sort -r -k1
+
+ 514 0
+ 232 1024
+  95 8192
+  58 4096
+  10 512
+   7 1536
+   6 303104
+   6 245760
+   5 466944
+   4 332076
+   4 1712128
+   3 286048
+   3 2560
+   3 2048
+   2 90112
+   2 634880
+   2 57344
+   2 532480
+   2 41525
+   2 33554432
+   2 270336
+   2 214080
+   2 180224
+   2 16777216
+   2 1269760
+   2 124796
+   2 114688
+   1 983040
+   1 98304
+   1 916304
+   1 73728
+   1 6482
+   1 565
+   1 491520
+   1 4608
+   1 42674
+   1 41
+   1 3757680
+   1 3584
+   1 30231
+   1 2826932
+   1 253952
+   1 25165824
+   1 25067
+   1 229
+   1 160080
+   1 139784
+   1 1327104
+   1 123470
+   1 122880
+   1 1011712
+
+For most of the files read size is 1-8 Kb.
+
+grep "Block READ" sampleTrace.csv | awk '{print $9}' | sort | uniq -c | sort -r -k1 
+ 232 1024
+  95 8192
+  58 4096
+   2 0
+   1 6482
+   1 565
+
+awk '{print $11}' sampleTrace.csv | sort | uniq | wc -l         
+      52
+
+52 users 
+
+Get host number (client id), sort them and get unique values with count
+of lines then sort them by number of lines in descending order
+
+awk '{print $11}' sampleTrace.csv | sort | uniq -c | sort -r -k1
+
+ 233 4152
+ 173 2012
+  93 2084
+  75 2181
+  46 2188
+  32 2082
+  31 2086
+  28 2049
+  20 2214
+  18 4069
+  13 2122
+  13 2019
+  13 2014
+  12 2217
+  12 2054
+  11 2204
+  11 2147
+  10 2208
+  10 2145
+   9 2205
+   9 2150
+   9 2081
+   9 2050
+   8 2203
+   8 2120
+   7 2177
+   7 2165
+   6 2044
+   5 4162
+   5 2212
+   5 2200
+   5 2116
+   4 2218
+   4 2206
+   4 2162
+   4 2157
+   4 2132
+   4 2060
+   4 2025
+   3 2173
+   3 2038
+   2 4186
+   2 4119
+   2 2219
+   2 2164
+   2 2163
+   2 2158
+   2 2148
+   2 2062
+   2 2053
+   1 4131
+   1 2193
+
+
+1034787600.774001 30.0801 31.0320 U R3 d2891970 1 getattr OK 
+ftype 1 
+mode 180 
+nlink 1 
+uid 18a88 
+gid 18a88 
+size e7e 
+used 1000 
+rdev 0 
+rdev2 0 
+fsid 8664 
+fileid 355861 
+atime 1034786445.038001 
+mtime 1034786444.934008 
+ctime 1034786444.934008 
+status=XXX 
+pl = XXX 
+con = XXX 
+len = XXX
+
+Most files have size e7e (3710) or e71 (3697)
+awk '($5=="R3" && $8=="getattr") {print $21}' HW-NFS-Measure/sample | sort -r | uniq -c
+  28 e7e
+  27 e71
+  12 618
+   1 225
+   1 1fd
+   3 1000
+
+
+User with uid 18a88 is the one who requests most of the files.
+awk '($5=="R3" && $8=="getattr") {print $17}' HW-NFS-Measure/sample | sort | uniq -c 
+  67 18a88
+   1 18a8e
+   2 18a8f
+   2 18a90
+
+4. You can also look at requests to a given file and determine how
+files are being accessed. For example, is a given file being read or
+written sequentially? Or randomly? Look at the details of READ
+andWRITE requests/replies to compute the answer.
+
+grep "Block READ" sampleTrace.csv
+
+File 211e00000001681c read sequence not arriving in order: 
+748339268.222642 Block READ FID: 211e00000001681c OFF: 110592 SIZE: 4096 HOST: 2147
+748339268.234361 Block READ FID: 211e00000001681c OFF: 98304 SIZE: 8192 HOST: 2147
+748339268.249984 Block READ FID: 211e00000001681c OFF: 106496 SIZE: 4096 HOST: 2147
+
+File 461e000000038222 read in sequence
+748339340.980406 Block READ FID: 461e000000038222 OFF: 0 SIZE: 8192 HOST: 2019
+748339341.011718 Block READ FID: 461e000000038229 OFF: 8192 SIZE: 8192 HOST: 2019
+748339341.015627 Block READ FID: 461e000000038229 OFF: 16384 SIZE: 8192 HOST: 2019
+748339341.050778 Block READ FID: 461e000000038222 OFF: 8192 SIZE: 8192 HOST: 2019
+748339341.058590 Block READ FID: 461e000000038222 OFF: 16384 SIZE: 8192 HOST: 2019
+
+The reads and writes are sequential
+grep "read fh" HW-NFS-Measure/sample | sort -k10 | awk '{print $12 " " $14}' 
+2316c000 4000
+23170000 4000
+23174000 4000
+23178000 4000
+2317c000 4000
+23180000 4000
+23184000 4000
+23188000 4000
+2318c000 4000
+23190000 4000
+23194000 4000
+23198000 4000
+2319c000 4000
+231a0000 4000
+231a4000 4000
+231a8000 4000
+231ac000 4000
+231b0000 4000
+231b4000 4000
+231b8000 4000
+231bc000 4000
+231c0000 4000
+231c4000 4000
+231c8000 4000
+231cc000 4000
+231d0000 4000
+231d4000 4000
+231d8000 4000
+231dc000 4000
+231e0000 4000
+231e4000 4000
+231e8000 4000
+231ec000 4000
+231f0000 4000
+231f4000 4000
+231f8000 4000
+231fc000 4000
+23200000 4000
+23204000 4000
+23208000 4000
+2320c000 4000
+23210000 4000
+23214000 4000
+23218000 4000
+2321c000 4000
+23220000 4000
+23224000 4000
+23228000 4000
+2322c000 4000
+23230000 4000
+23234000 4000
+23238000 4000
+2323c000 4000
+23240000 4000
+23244000 4000
+23248000 4000
+2324c000 4000
+23250000 4000
+23254000 4000
+23258000 4000
+2325c000 4000
+23260000 4000
+23264000 4000
+23268000 4000
+2326c000 4000
+23270000 4000
+23274000 4000
+23278000 4000
+2327c000 4000
+23280000 4000
+23284000 4000
+23288000 4000
+1448000 4000
+144c000 4000
+1450000 4000
+1454000 4000
+1458000 4000
+145c000 4000
+1460000 4000
+1464000 4000
+1468000 4000
+146c000 4000
+1470000 4000
+1474000 4000
+1478000 4000
+147c000 4000
+1480000 4000
+1484000 4000
+1488000 4000
+148c000 4000
+1490000 4000
+1494000 4000
+1498000 4000
+149c000 4000
+14a0000 4000
+14a4000 4000
+14a8000 4000
+14ac000 4000
+14b0000 4000
+14b4000 4000
+14b8000 4000
+14bc000 4000
+14c0000 4000
+14c4000 4000
+14c8000 4000
+14cc000 4000
+14d0000 4000
+14d4000 4000
+14d8000 4000
+14dc000 4000
+14e0000 4000
+14e4000 4000
+14e8000 4000
+14ec000 4000
+14f0000 4000
+14f4000 4000
+14f8000 4000
+14fc000 4000
+1500000 4000
+1504000 4000
+1508000 4000
+150c000 4000
+1510000 4000
+1514000 4000
+1518000 4000
+151c000 4000
+1520000 4000
+1524000 4000
+1528000 4000
+152c000 4000
+1530000 4000
+1534000 4000
+1538000 4000
+153c000 4000
+1540000 4000
+1544000 4000
+1548000 4000
+154c000 4000
+1550000 4000
+1554000 4000
+1558000 4000
+155c000 4000
+1560000 4000
+1564000 4000
+1568000 4000
+156c000 4000
+1570000 4000
+1574000 4000
+1578000 4000
+157c000 4000
+1580000 4000
+1584000 4000
+1588000 4000
+158c000 4000
+1590000 4000
+1594000 4000
+1598000 4000
+159c000 4000
+15a0000 4000
+15a4000 4000
+15a8000 4000
+15ac000 4000
+15b0000 4000
+15b4000 4000
+15b8000 4000
+15bc000 4000
+15c0000 4000
+15c4000 4000
+15c8000 4000
+15cc000 4000
+15d0000 4000
+d92000 6000
+d98000 4000
+d9e000 2000
+da0000 8000
+da8000 6000
+db0000 8000
+db8000 8000
+dc0000 6000
+dc8000 6000
+
+grep "write fh" HW-NFS-Measure/sample | sort -k10 | awk '{print $12 " " $14}' 
+1000000 2000
+1002000 2000
+1004000 2000
+1006000 2000
+1008000 2000
+100a000 2000
+100c000 2000
+100e000 2000
+1010000 2000
+1012000 2000
+1014000 2000
+1016000 2000
+1018000 2000
+101a000 2000
+101c000 2000
+101e000 2000
+1020000 2000
+1022000 2000
+1024000 2000
+1026000 2000
+1028000 2000
+102a000 2000
+102c000 2000
+102e000 2000
+1030000 2000
+1032000 2000
+1034000 2000
+1036000 2000
+1038000 2000
+103a000 2000
+103c000 2000
+103e000 2000
+1040000 2000
+1042000 2000
+1044000 2000
+1046000 2000
+1048000 2000
+104a000 2000
+104c000 2000
+104e000 2000
+1050000 2000
+1052000 2000
+1054000 2000
+1056000 2000
+1058000 2000
+105a000 2000
+105c000 2000
+105e000 2000
+1060000 2000
+1062000 2000
+1064000 2000
+1066000 2000
+1068000 2000
+106a000 2000
+106c000 2000
+106e000 2000
+1070000 2000
+1072000 2000
+1074000 2000
+1076000 2000
+1078000 2000
+107a000 2000
+107c000 2000
+107e000 2000
+1080000 2000
+1082000 2000
+1084000 2000
+1086000 2000
+1088000 2000
+108a000 2000
+108c000 2000
+108e000 2000
+1090000 2000
+1092000 2000
+1094000 2000
+1096000 2000
+1098000 2000
+109a000 2000
+109c000 2000
+109e000 2000
+10a0000 2000
+10a2000 2000
+10a4000 2000
+10a6000 2000
+10a8000 2000
+eca000 2000
+ecc000 2000
+ece000 2000
+ed0000 2000
+ed2000 2000
+ed4000 2000
+ed6000 2000
+ed8000 2000
+eda000 2000
+edc000 2000
+ede000 2000
+ee0000 2000
+ee2000 2000
+ee4000 2000
+ee6000 2000
+ee8000 2000
+eea000 2000
+eec000 2000
+eee000 2000
+ef0000 2000
+ef2000 2000
+ef4000 2000
+ef6000 2000
+ef8000 2000
+efa000 2000
+efc000 2000
+efe000 2000
+f00000 2000
+f02000 2000
+f04000 2000
+f06000 2000
+f08000 2000
+f0a000 2000
+f0c000 2000
+f0e000 2000
+f10000 2000
+f12000 2000
+f14000 2000
+f16000 2000
+f18000 2000
+f1a000 2000
+f1c000 2000
+f1e000 2000
+f20000 2000
+f22000 2000
+f24000 2000
+f26000 2000
+f28000 2000
+f2a000 2000
+f2c000 2000
+f2e000 2000
+f30000 2000
+f32000 2000
+f34000 2000
+f36000 2000
+f38000 2000
+f3a000 2000
+f3c000 2000
+f3e000 2000
+f40000 2000
+f42000 2000
+f44000 2000
+f46000 2000
+f48000 2000
+f4a000 2000
+f4c000 2000
+f4e000 2000
+f50000 2000
+f52000 2000
+f54000 2000
+f56000 2000
+f58000 2000
+f5a000 2000
+f5c000 2000
+f5e000 2000
+f60000 2000
+f62000 2000
+f64000 2000
+f66000 2000
+f68000 2000
+f6a000 2000
+f6c000 2000
+f6e000 2000
+f70000 2000
+f72000 2000
+f74000 2000
+f76000 2000
+f78000 2000
+f7a000 2000
+f7c000 2000
+f7e000 2000
+f80000 2000
+f82000 2000
+f84000 2000
+f86000 2000
+f88000 2000
+f8a000 2000
+f8c000 2000
+f8e000 2000
+f90000 2000
+f92000 2000
+f94000 2000
+f96000 2000
+f98000 2000
+f9a000 2000
+f9c000 2000
+f9e000 2000
+fa0000 2000
+fa2000 2000
+fa4000 2000
+fa6000 2000
+fa8000 2000
+faa000 2000
+fac000 2000
+fae000 2000
+fb0000 2000
+fb2000 2000
+fb4000 2000
+fb6000 2000
+fb8000 2000
+fba000 2000
+fbc000 2000
+fbe000 2000
+fc0000 2000
+fc2000 2000
+fc4000 2000
+fc6000 2000
+fc8000 2000
+fca000 2000
+fcc000 2000
+fce000 2000
+fd0000 2000
+fd2000 2000
+fd4000 2000
+fd6000 2000
+fd8000 2000
+fda000 2000
+fdc000 2000
+fde000 2000
+fe0000 2000
+fe2000 2000
+fe4000 2000
+fe6000 2000
+fe8000 2000
+fea000 2000
+fec000 2000
+fee000 2000
+ff0000 2000
+ff2000 2000
+ff4000 2000
+ff6000 2000
+ff8000 2000
+ffa000 2000
+ffc000 2000
+ffe000 2000
+0 104
+11f000 1000
+12e000 1000
+3000 1000
+63000 1000
+9c000 1000
+9d000 1000
+
+5. Traffic comes from many machines and goes to one server (in this
+trace). Compute a traffic matrix, which shows how many different
+clients there are in the trace, and how many requests/replies go to
+each. Do a few machines dominate, or is it more evenly balanced?
+
+Half the traffic comes from client 03ff
+ awk '($5=="C3") {print $2 " " $3}' HW-NFS-Measure/sample | sort | uniq -c | sort -r -k1
+ 242 32.03ff 30.0801
+ 110 32.03fe 30.0801
+  74 31.0320 30.0801
+  59 32.03fa 30.0801
+   7 33.03fe 30.0801
+   2 36.0320 30.0801
+   2 35.03ff 30.0801
+   2 33.03fd 30.0801
+   1 34.03ff 30.0801
+   1 33.03fc 30.0801
+
+6. The timing information, and the per-request/reply unique ID, should
+allow you to compute the latency for a given request. Compute the
+latencies of all request/reply pairs, and plot them as a distribution.
+What is the average? Maximum? Minimum?
+
+https://github.com/xxyzz/ostep-hw/blob/master/49/q6.awk
+
+7. Sometimes requests are retried, as the request or its reply could be
+lost or dropped. Can you find any evidence of such retrying in the
+trace sample?
+
+awk '($5=="C3") {print $6}' HW-NFS-Measure/sample | sort | uniq -c | sort -r
+Each request id appears once.
+
+8. There are many other questions you could answer through more
+analysis. What questions do you think are important? Suggest
+them to us, and perhaps we’ll add them here!

@@ -1,0 +1,194 @@
+Homework (Simulation)
+This simulation homework focuses on fork.py, a simple process creation simulator 
+that shows how processes are related in a single “familial” tree. 
+Read the relevant README for details about how to run the
+simulator.
+
+Questions
+1. Run ./fork.py -s 10 and see which actions are taken. Can you
+predict what the process tree looks like at each step? Use the -c
+flag to check your answers. Try some different random seeds (-s)
+or add more actions (-a) to get the hang of it.
+
+./fork.py -s 10
+a->b
+a->b,c
+a->b
+a->b,d
+a->b,d,e
+
+./fork.py -s 9
+a->b
+a->b->c
+a->b->c,d
+a->b->d,c->e
+a->b->f,d,c->e
+
+./fork.py -s 9 -a 6
+a->b
+a->b->c
+a->b->c,d
+a->b->d,c->e
+a->b->f,d,c->e
+a->e,b->f,d When its parent exits (c), e becomes child of initial process   
+
+2. One control the simulator gives you is the fork_percentage, 
+controlled by the -f flag. The higher it is, the more likely 
+the next action is a fork; the lower it is, the more likely 
+the action is an exit.
+Run the simulator with a large number of actions (e.g., -a 100)
+and vary the fork_percentage from 0.1 to 0.9. What do you
+think the resulting final process trees will look like 
+as the percentage changes? Check your answer with -c.
+
+When the fork percentage is low, the number of exit actions is a little bit 
+lower than fork (cannot be higher since you can not have an exit 
+without a fork before for child process to be created) so almost all forks 
+are cancelled, there are few siblings and low depth of the tree.
+When fork percentage increase, there are more forks in detriment of exits
+so more siblings and increased depth (e.g. for 90% 16 siblings and depth 7)
+
+3. Now, switch the output by using the -t flag (e.g., run ./fork.py
+-t). Given a set of process trees, can you tell which actions were
+taken?
+
+a forks b
+b exits
+a forks c
+c forks d
+d forks e
+
+4. One interesting thing to note is what happens when a child exits;
+what happens to its children in the process tree? To study this, let’s
+create a specific example: ./fork.py -A a+b,b+c,c+d,c+e,c-.
+This example has process ’a’ create ’b’, which in turn creates ’c’,
+which then creates ’d’ and ’e’. However, then, ’c’ exits. What do
+you think the process tree should like after the exit? What if you
+use the -R flag? Learn more about what happens to orphaned processes
+on your own to add more context.
+
+When d and e are orphaned (their parent exits) by default they become children
+of initial process (root) a, not their grand-parent b (local reparent)
+With -R flag, the new parent for orphaned processes becones their local reparent
+i.d closest ascendant (grand parent).
+Orphan process are reassign to a special system process (like init in Linux) 
+that becomes its new parent to handle cleanup
+
+5. One last flag to explore is the -F flag, which skips intermediate
+steps and only asks to fill in the final process tree. Run ./fork.py
+-F and see if you can write down the final tree by looking at the
+series of actions generated. Use different random seeds to try this a
+few times.
+
+./fork.py -F -s7 
+a->(b->d),(c->e,f)
+
+./fork.py -F -s8 
+a->d,b->e,c->f
+
+6. Finally, use both -t and -F together. This shows the final process
+tree, but then asks you to fill in the actions that took place. 
+By looking at the tree, can you determine the exact actions that took place?
+In which cases can you tell? In which can’t you tell? 
+Try some different random seeds to delve into this question.
+
+./fork.py -t -F -s 5
+We know that by default we have 5 actions
+The final process tree is a->d. Since we reached d, we must have forked
+b and c and also both exited. It is not clear the order fork exit fork exit
+or fork fork exit exit. Also not clear the max depth we reached (2 or 3) or 
+if we have 1 fork a->d and the remaining 2 forks cancelled by 2 exits 
+(e.g. a->b, a->c, then b exits and c exits or a->b, b->c, c exits, b exits)
+or d was orphaned: a->b, b->c, c->d, c exits, b exits
+
+./fork.py -t -F -s 6  
+The final process tree is a->b->c->d->e->f
+Since no exit action the actions are clear: a->b, b->c, c->d, d->e,e->f
+
+Homework (Code)
+In this homework, you are to gain some familiarity with the process
+management APIs about which you just read. Don’t worry – it’s even
+more fun than it sounds! You’ll in general be much better off if you find
+as much time as you can to write some code, so why not start now?
+
+Questions
+1. Write a program that calls fork(). Before calling fork(), have the
+main process access a variable (e.g., x) and set its value to something 
+(e.g., 100). What value is the variable in the child process?
+What happens to the variable when both the child and parent change
+the value of x?
+Value remains 100 in child and parent if no one changes it.
+When child changes it to 50 from that moment on is remains 50, 
+but after wait returns in parent value is still 100
+When parent changes it to 70 after wait, value remains 100 in child, 
+becomes 70 only in parent after change
+When both change value: child to 50, parent to 70 after wait, child and
+parent have different values.
+Child gets its private address space with same values initially (x=100),
+but it can change it in its space which doesn't affect parent space.
+It doesn'yt matter if parent waits or not for child.
+
+
+2. Write a program that opens a file (with the open() system call)
+and then calls fork() to create a new process. Can both the child
+and parent access the file descriptor returned by open()? 
+What happens when they are writing to the file concurrently, i.e., at the
+same time?
+Both child and parent access the file descriptor since it was created
+before fork so they have access to that variable. 
+When they write to it concurently both their contributions appear 
+in the file : first child, then parent if parents waits, 
+or first parent then child
+
+3. Write another program using fork(). The child process should
+print “hello”; the parent process should print “goodbye”. You should
+try to ensure that the child process always prints first; can you do
+this without calling wait() in the parent?
+If we call sleep in parent before printing, 
+the child has time to print hello before.
+The issue is that if a wait is not performed, then the terminated child 
+(after printing hello) remains in a "zombie" state.
+As long as a zombie is not removed from the system via a wait, 
+it will consume a slot in the kernel process table, and if this table fills, 
+it will not be possible to create further processes.
+
+4. Write a program that calls fork() and then calls some form of
+exec() to run the program /bin/ls. See if you can try all of the
+variants of exec(), including (on Linux) execl(), execle(),
+execlp(), execv(), execvp(), and execvpe(). Why do
+you think there are so many variants of the same basic call?
+
+The differences are in how the program is found (p suffix), 
+how the arguments are specified (v vs l suffix), 
+and where the environment comes from (e suffix)
+
+
+5. Now write a program that uses wait() to wait for the child process
+to finish in the parent. What does wait() return? What happens if
+you use wait() in the child?
+
+wait(): on success, returns the process ID of the terminated child; 
+on failure, -1 is returned.
+When we call wait from child, since it doesn't have any child,
+the return code is -1.
+
+6. Write a slight modification of the previous program, 
+this time using waitpid() instead of wait(). When would waitpid() be
+useful?
+
+wait(&wstatus) is equivalent to: waitpid(-1, &wstatus, 0)
+pid -1 meaning wait for any child process.
+waitpid allows more freedom for selecting child process (pid) and
+when to return (options)
+
+7. Write a program that creates a child process, and then in the child
+closes standard output (STDOUT_FILENO). What happens if the child
+calls printf() to print some output after closing the descriptor?
+
+After we close descriptor for stdout the printf in child doesn't print
+anything to terminal because stdout is not attached to terminal. 
+printf returns -1 since this function returns the number of characters printed.
+
+8. Write a program that creates two children, and connects the standard output 
+of one to the standard input of the other, using the
+pipe() system call.

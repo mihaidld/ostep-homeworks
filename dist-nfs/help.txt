@@ -1,0 +1,43 @@
+Auspex File System Traces
+<!-- Changed by: Mike Dahlin,  3-Feb-1996 -->
+
+These traces follow the NFS activity of 236 clients serviced by an Auspex file
+server over the period of 1 week during late 1993. They were gathered by Cliff
+Mather by snooping Ethernet packets on four subnets. The clients are the desktop
+workstations of the University of California at Berkeley Computer Science
+Division.
+
+Each entry is of the form
+
+  -timestamp- -type- -action- FID: -fid- OFF: -offset- SIZE: -size- HOST: -host-
+
+where
+
+  -timestamp- is a floating point number indicating the time of the record (in
+  seconds)
+
+  -type- is one of Attr, Block, Dir, Delete, Open, Close.
+
+    Attr records indicate a getattr request.
+
+    Block or Dir records indicate that a file block or directory was read or
+    written over the network.
+
+    Delete records indicate that the file was deleted.
+
+    Open and close records indicate that a file was opened or closed. (These
+    records exist for non-directory files only.)
+
+  -action- is one of READ, WRITE
+
+  -fid- is a file identifier (16-digit hex number)
+
+  -offset- is the offset within the file for a read or write or the (approximate)
+  size of the file for Open or Close
+
+  -host- is the id of the client that made the request
+
+Note that since the trace was gathered by snooping the network, the Open and
+Close events were generated heurstically from the observed pattern of reads,
+writes, and attribute requests. See Matt Blaze's paper "NFS Tracing by Passive
+Network Monitoring" Winter 1992 USENIX pp. 333-344.

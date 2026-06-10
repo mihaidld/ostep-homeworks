@@ -1,0 +1,223 @@
+Homework (Simulation)
+This section introduces fsck.py, a simple simulator you can use to
+better understand how file system corruptions can be detected (and potentially
+repaired). Please see the associated README for details on how
+to run the simulator.
+
+Questions
+1. First, run fsck.py -D; this flag turns off any corruption, and thus
+you can use it to generate a random file system, and see if you can
+determine which files and directories are in there. So, go ahead and
+do that! Use the -p flag to see if you were right. Try this for a few
+different randomly-generated file systems by setting the seed (-s)
+to different values, like 1, 2, and 3.
+
+./fsck.py -D -s 1
+inode bitmap 1000100110010001
+inodes       [d a:0 r:4] [] [] [] [f a:-1 r:1] [] [] [d a:10 r:2] [d a:15 r:2] [] [] [f a:-1 r:3] [] [] [] [f a:-1 r:1] 
+data bitmap  1000000000100001
+data         [(.,0) (..,0) (m,7) (a,8) (g,11)] [] [] [] [] [] [] [] [] [] [(.,7) (..,0) (m,15) (e,11)] [] [] [] [] [(.,8) (..,0) (r,4) (w,11)] 
+
+Directories: '/', '/m', '/a'
+Files:       '/g', '/m/m', '/m/e', 'a/r', 'a/w'
+
+./fsck.py -D -s 2
+inode bitmap 1000000100110101
+inodes       [d a:0 r:3] [] [] [] [] [] [] [d a:4 r:3] [] [] [f a:-1 r:1] [f a:-1 r:2] [] [d a:11 r:3] [] [d a:15 r:2] 
+data bitmap  1000100000010001
+data         [(.,0) (..,0) (c,13)] [] [] [] [(.,7) (..,13) (u,15) (q,11)] [] [] [] [] [] [] [(.,13) (..,0) (o,7)] [] [] [] [(.,15) (..,7) (q,11) (e,10)] 
+
+Directories: '/', '/c', '/c/o','/c/o/u',
+Files:       '/c/o/q', '/c/o/u/q', '/c/o/u/e',
+
+./fsck.py -D -s 3   
+inode bitmap 1011000000000001
+inodes       [d a:0 r:3] [] [d a:13 r:3] [d a:9 r:2] [] [] [] [] [] [] [] [] [] [] [] [f a:15 r:2] 
+data bitmap  1000000001000101
+data         [(.,0) (..,0) (f,15) (x,15) (r,2)] [] [] [] [] [] [] [] [] [(.,3) (..,2)] [] [] [] [(.,2) (..,0) (s,3)] [] [w]
+
+Directories: '/', '/r','/r/s'
+Files:       '/f','/x'
+
+2. Now, let’s introduce a corruption. Run fsck.py -S 1 to start.
+Can you see what inconsistency is introduced? How would you fix
+it in a real file system repair tool? Use -c to check if you were right.
+
+Final state of file system:
+
+inode bitmap 1000100010000001
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:2] [] [] [] [] [f a:-1 r:2] [] [f a:-1 r:1] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+
+File system was corrupted: inode bitmap corrupt bit 13 is 0 inside bitmap, 
+altough it was allocated according to inodes table [f a:-1 r:2] to empty file
+'/z'
+Fix inode bitmap to
+inode bitmap 1000100010000101
+
+3. Change the seed to -S 3 or -S 19; which inconsistency do you
+see? Use -c to check your answer. What is different in these two
+cases?
+
+./fsck.py -S 3   
+inode bitmap 1000100010000101
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:2] [] [] [] [] [f a:-1 r:2] [] [f a:-1 r:2] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+
+Directory '/g' should have inode [d a:6 r:3] instead of [d a:6 r:2] 
+because, according to updated data block it contains '.','..' and file 's'
+Also inode 15 refcnt should be 1, not 2 since only file '/g/s' points to it
+
+Fix:
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:3] [] [] [] [] [f a:-1 r:2] [] [f a:-1 r:1] 
+
+./fsck.py -S 19  
+inode bitmap 1000100010000101
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:1] [] [] [] [] [f a:-1 r:2] [] [f a:-1 r:1] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+
+Directory '/g' (inode 8) should have inode [d a:6 r:3] instead of [d a:6 r:1] 
+because, according to updated data block it contains '.','..' and file 's'
+Fix:
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:3] [] [] [] [] [f a:-1 r:2] [] [f a:-1 r:1] 
+
+
+4. Change the seed to -S 5; which inconsistency do you see? How
+hard would it be to fix this problem in an automatic way? Use -c to
+check your answer. Then, introduce a similar inconsistency with -S
+38; is this harder/possible to detect? Finally, use -S 642; is this
+inconsistency detectable? If so, how would you fix the file system?
+
+./fsck.py -S 5 
+inode bitmap 1000100010000101
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:2] [] [] [] [] [f a:-1 r:2] [] [f a:-1 r:1] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (y,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] []   
+
+Data block 6 for directory '/g' contains entry for empty file '/g/y' 
+pointing to inode 15 instead of '/g/s'.
+Fix:
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+
+./fsck.py -S 38
+inode bitmap 1000100010000101
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:2] [] [] [] [] [f a:-1 r:2] [] [f a:-1 r:1] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (b,0)] [] [] [] 
+
+Data block 12 for directory '/w' corrupted name of parent directory (b,0) 
+instead of (..,0)
+Fix:
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+We need to have inside every directory data block entries for . and ..
+
+./fsck.py -S 642  
+inode bitmap 1000100010000101
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:2] [] [] [] [] [f a:-1 r:2] [] [f a:-1 r:1] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (w,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+
+Data block 0 for '/' directory contains 2 entries for directories with
+same user-readable name and different inodes (w,8) (w,4) instead of  
+(g,8) (w,4)
+Fix:
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+
+We need to ensure all directory entries haven't duplicate names,
+there are entries for '.' and '..'.
+
+5. Change the seed to -S 6 or -S 13; which inconsistency do you
+see? Use -c to check your answer. What is the difference across
+these two cases? What should the repair tool do when encountering
+such a situation?
+
+./fsck.py -S 6     
+inode bitmap 1000100010000101
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:2] [] [] [] [d a:-1 r:1] [f a:-1 r:2] [] [f a:-1 r:1] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+
+Inode 12 [d a:0 r:4] is corrupted since inode bitmap shows inode
+not allocated and directory can't have address -1 and reference count 1
+since there are at minimum '.' and '..' inside.
+
+./fsck.py -S 13   
+inode bitmap 1000100010000101
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:2] [] [f a:-1 r:1] [] [] [f a:-1 r:2] [] [f a:-1 r:1] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+
+Inode 10 is orphan [f a:-1 r:1] since inode bitmap shows that 10 is not
+allocated and there is no mention of inode 10 within any directory data block
+
+
+6. Change the seed to -S 9; which inconsistency do you see? Use -c
+to check your answer. Which piece of information should a check and-
+repair tool trust in this case?
+
+./fsck.py -S 9    
+inode bitmap 1000100010000101
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:2] [] [] [] [] [d a:-1 r:2] [] [f a:-1 r:1] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+
+Inode 13 [d a:-1 r:2] mentions directory, altough directory must
+have non-negative address. Data block 0 contains pairs (m,13) (z,13)
+so m and z must be files since they point to same inode. The repair tool 
+should trust the data blocks and change inode to [f a:-1 r:2]
+
+
+7. Change the seed to -S 15; which inconsistency do you see? Use
+-c to check your answer. What can a repair tool do in this case? If
+no repair is possible, how much data is lost?
+
+./fsck.py -S 15   
+inode bitmap 1000100010000101
+inodes       [f a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:2] [] [] [] [] [f a:-1 r:2] [] [f a:-1 r:1] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+
+Inode 0 is [f a:0 r:4] when it should be root directory '/' so
+[d a:0 r:4].
+
+8. Change the seed to -S 10; which inconsistency do you see? Use
+-c to check your answer. Is there redundancy in the file system
+structure here that can help a repair?
+
+./fsck.py -S 10   
+inode bitmap 1000100010000101
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:2] [] [] [] [] [f a:-1 r:2] [] [f a:-1 r:1] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,3)] [] [] [] 
+
+Data block 12 has contents [(.,4) (..,3)] when according to data block 0
+[(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] directory '/w' has parent
+root inode 0 '/'. Also inode 3 is unallocated according to inode
+bitmap. Must change data block 12 to  [(.,4) (..,0)]
+
+9. Change the seed to -S 16 and -S 20; which inconsistency do you
+see? Use -c to check your answer. How should the repair tool fix
+the problem?
+
+./fsck.py -S 16   
+inode bitmap 1000100010000101
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:6 r:2] [] [] [] [] [f a:7 r:2] [] [f a:-1 r:1] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+
+Inode 13 has contents [f a:7 r:2], but according to data bitmap  and data 
+block 7 address 7 is unallocated.    Also data block 0 has entries 
+(m,13) (z,13).
+We need to change it [f a:-1 r:2]
+
+./fsck.py -S 20   
+inode bitmap 1000100010000101
+inodes       [d a:0 r:4] [] [] [] [d a:12 r:2] [] [] [] [d a:11 r:2] [] [] [] [] [f a:-1 r:2] [] [f a:-1 r:1] 
+data bitmap  1000001000001000
+data         [(.,0) (..,0) (g,8) (w,4) (m,13) (z,13)] [] [] [] [] [] [(.,8) (..,0) (s,15)] [] [] [] [] [] [(.,4) (..,0)] [] [] [] 
+
+Inode 8 [d a:11 r:2], but according to data bitmap and data block 11,
+address 11 is not allocated so INODE 8 points to dead block 11

@@ -1,0 +1,88 @@
+1. Compute the response time and turnaround time when running
+three jobs of length 200 with the SJF and FIFO schedulers.
+
+./scheduler.py -p FIFO -l 200,200,200
+FIFO: job 0 starts, run till 200, then 1 till 400, then c till 600
+so for 0 turnaround time (tt) = 200, response time (rt) = 0,
+for 1 tt = 400, rt = 200,
+for 2 tt = 600, rt = 400
+so avg tt = 400, avg rt = 200
+
+./scheduler.py -p SJF -l 200,200,200
+SJF: all 3 have same length so it behaves like FIFO
+
+2. Now do the same but with jobs of different lengths: 100, 200, and
+300.
+
+./scheduler.py -p FIFO -l 100,200,300
+FIFO: job 0 starts, run till 100, then 1 till 300 (100+200), 
+then c till 600 (300+300)
+so for 0 turnaround time (tt) = 100, response time (rt) = 0,
+for 1 tt = 300, rt = 100,
+for 2 tt = 600, rt = 300
+so avg tt = 333, avg rt = 133
+
+./scheduler.py -p SJF -l 100,200,300
+SJF: since job length are increasing, same as FIFO 0, then 1, then 2 
+
+3. Now do the same, but also with the RR scheduler and a time-slice
+of 1.
+
+./scheduler.py -p RR -l 100,200,300 -q 1
+Job 0 starts for 1 unit so rt = 0, then job 1 for 1 unit rt = 1, 
+then job 2 for 1 unit so rt = 2 so avg rt = 1.
+But turnaround time increases since jobs alternate:
+012 012 012 ... 012 12 12 12 ... 12 2 2 2 ... 
+Job 0 completes after 99 groups (012) + last 0 so tt = 99*3+1=298
+Job 1 completes after 100 groups of 012 + 99 groups of 12 + last 1 =
+100*3+99*2+1=499
+Job 2 completes after 100 groups of 012 + 100 groups of 12 + 
+100 left alone = 3*100+2*100+100=600
+so avg tt = 465
+
+4. For what types of workloads does SJF deliver the same turnaround
+times as FIFO?
+
+Same length or new jobs with increasing lengths
+
+5. For what types of workloads and quantum lengths does SJF deliver
+the same response times as RR?
+
+With SJF the shotest job starts running till completion. 
+If its length > quantum length, the next jobs wil have longer response
+times so if we have multiple shorts jobs (<= quantum) then
+we get same response times for RR and SJF: each jobs stops either
+necause of completion (SJF) or fairness (at quantum RR)
+
+
+6. What happens to response time with SJF as job lengths increase?
+Can you use the simulator to demonstrate the trend?
+
+As job lengths increases, the shortest starts, the others wait, 
+when shortest completed, 2nd shortest start, the others wait,
+the longest waited all the other sto c0mplete before running so
+for N jobs: 0 shortest and N-1 longest
+total response time =  length of job 0 (* N-1) + length of 1 * N-2 + ...
+
+./scheduler.py -p SJF -l 100,200
+with 2 jobs of 100 and 200:
+avg rt = (0 + 100)/2 = 50
+
+./scheduler.py -p SJF -l 200,300
+with 2 jobs of 200 and 300:
+avg rt = (0 + 200)/2 = 100
+Since length of shortest increases so does the response time of the next ones
+
+7. What happens to response time with RR as quantum lengths increase? 
+Can you write an equation that gives the worst-case response time, 
+given N jobs?
+
+As quantum lengths increase the next jobs will increase their response time
+by that increase * jobs before them
+Suppose increase quantum length: q0+ delta = q1
+When qo: total rt = 0 (for job 0) + q0 (for job1) + 2qo (for job 2) +
++ (N-1)qo (for last job N-1) = qo*(1+2+...+N-1)=qo*(N-1)*N/2
+When q1 total rt = q1*(N-1)*N/2 = (q0+delta)*(N-1)*N/2=
+q0*(N-1)*N/2 + delta*(N-1)*N/2.
+So for each increase in quantum by delta total response time
+increases by delta*(N-1)*N/2

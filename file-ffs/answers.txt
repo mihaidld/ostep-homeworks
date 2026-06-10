@@ -1,0 +1,235 @@
+Homework (Simulation)
+This section introduces ffs.py, a simple FFS simulator you can use
+to understand better how FFS-based file and directory allocation work.
+See the README for details on how to run the simulator.
+
+
+Questions
+1. Examine the file in.largefile, and then run the simulator with flag -f
+in.largefile and -L 4. The latter sets the large-file exception to 4 blocks.
+What will the resulting allocation look like? Run with -c to check.
+
+group inodes    data
+    0 /a-------- /aaaa----- ---------- ----------
+    1 ---------- aaaa------ ---------- ----------
+    2 ---------- aaaa------ ---------- ----------
+    3 ---------- aaaa------ ---------- ----------
+    4 ---------- aaaa------ ---------- ----------
+    5 ---------- aaaa------ ---------- ----------
+    6 ---------- aaaa------ ---------- ----------
+    7 ---------- aaaa------ ---------- ----------
+    8 ---------- aaaa------ ---------- ----------
+    9 ---------- aaaa------ ---------- ----------
+
+
+2. Now run with -L 30. What do you expect to see? Once again, turn on -c
+to see if you were right. You can also use -S to see exactly which blocks
+were allocated to the file /a.
+
+group inodes    data
+    0 /a-------- /aaaaaaaaa aaaaaaaaaa aaaaaaaaaa
+    1 ---------- aaaaaaaaaa a--------- ----------
+    2 ---------- ---------- ---------- ----------
+    3 ---------- ---------- ---------- ----------
+    4 ---------- ---------- ---------- ----------
+    5 ---------- ---------- ---------- ----------
+    6 ---------- ---------- ---------- ----------
+    7 ---------- ---------- ---------- ----------
+    8 ---------- ---------- ---------- ----------
+    9 ---------- ---------- ---------- ----------
+
+3. Now we will compute some statistics about the file. The first is something
+we call filespan, which is the max distance between any two data blocks of
+the file or between the inode and any data block. Calculate the filespan of
+/a. Run ffs.py -f in.largefile -L 4 -T -c to see what it is. Do
+the same with -L 100. What difference do you expect in filespan as the
+large-file exception parameter changes from low values to high values?
+
+./ffs.py -f in.largefile -L 4 -T -c 
+span: files
+  file:         /a  filespan: 372
+               avg  filespan: 372.00
+
+./ffs.py -f in.largefile -L 100 -T -c 
+span: files
+  file:         /a  filespan:  59
+               avg  filespan:  59.00
+When large-file exception parameter changes from low values to high values
+the filespan decreases since the distance between inode and furthest data block 
+is smaller because we fill each group more and use less groups for larger file
+
+4. Now let’s look at a new input file, in.manyfiles. How do you think the
+FFS policy will lay these files out across groups? (you can run with -v to
+see what files and directories are created, or just cat in.manyfiles). Run
+the simulator with -c to see if you were right.
+
+group inodes    data
+    0 /abcdefghi /aabbccdde effgghhii- ----------
+    1 jlmnopqrC- jlmnopqrCC C--------- ----------
+    2 tuvwxyzAB- tuuuvvvwww xxxyyyzzzA AABBB-----
+    3 ---------- ---------- ---------- ----------
+    4 ---------- ---------- ---------- ----------
+    5 ---------- ---------- ---------- ----------
+    6 ---------- ---------- ---------- ----------
+    7 ---------- ---------- ---------- ----------
+    8 ---------- ---------- ---------- ----------
+    9 ---------- ---------- ---------- ----------
+
+5. A metric to evaluate FFS is called dirspan. This metric calculates the spread
+of files within a particular directory, specifically the max distance between
+the inodes and data blocks of all files in the directory and the inode and data
+block of the directory itself. Run with in.manyfiles and the -T flag, and
+calculate the dirspan of the three directories. Run with -c to check. How
+good of a job does FFS do in minimizing dirspan?
+
+./ffs.py -f in.manyfiles -T -c
+span: directories
+  dir:           /  dirspan:  28
+  dir:          /j  dirspan:  20
+  dir:          /t  dirspan:  34
+               avg  dirspan:  27.33
+FFS does a great job in miniming dirspan since it keeps in same group
+directory (inode and data block) and composing files (inode and data blocks)
+so distance between directory inode and furthest file data block is 34
+for directory t.
+
+6. Now change the size of the inode table per group to 5 (-i 5). How do you
+think this will change the layout of the files? Run with -c to see if you were
+right. How does it affect the dirspan?
+
+group inode data
+    0 /abcd /aabbccdd- ---------- ----------
+    1 efghi eeffgghhii ---------- ----------
+    2 jlmno jlmno----- ---------- ----------
+    3 tuvwx tuuuvvvwww xxx------- ----------
+    4 ypzqA yyypzzzqAA A--------- ----------
+    5 rBC-- rBBBCCC--- ---------- ----------
+    6 ----- ---------- ---------- ----------
+    7 ----- ---------- ---------- ----------
+    8 ----- ---------- ---------- ----------
+    9 ----- ---------- ---------- ----------
+
+./ffs.py -f in.manyfiles -i 5 -c -T
+span: directories
+  dir:           /  dirspan:  49
+  dir:          /j  dirspan: 116
+  dir:          /t  dirspan:  78
+               avg  dirspan:  81.00
+Dirspan increases with smaller number of inodes per group since
+with 5 inodes per group there is only place for directory and 4 of its
+files in same group. The remaining files of directories j and t are
+interleaved inside new groups, separated from directory groups.
+
+
+7. Which group should FFS place inode of a new directory in? The default
+(simulator) policy looks for the group with the most free inodes. A different
+policy looks for a set of groups with the most free inodes. For example, if
+you run with -A 2, when allocating a new directory, the simulator will look
+at groups in pairs and pick the best pair for the allocation. Run ./ffs.py
+-f in.manyfiles -i 5 -A 2 -c to see how allocation changes with
+this strategy. How does it affect dirspan? Why might this policy be good?
+
+./ffs.py -f in.manyfiles -i 5 -A 2 -c -T
+group inodedata
+    0 /abcd /aabbccdd- ---------- ----------
+    1 efghi eeffgghhii ---------- ----------
+    2 jlmno jlmno----- ---------- ----------
+    3 pqrC- pqrCCC---- ---------- ----------
+    4 tuvwx tuuuvvvwww xxx------- ----------
+    5 yzAB- yyyzzzAAAB BB-------- ----------
+    6 ----- ---------- ---------- ----------
+    7 ----- ---------- ---------- ----------
+    8 ----- ---------- ---------- ----------
+    9 ----- ---------- ---------- ----------
+span: directories
+  dir:           /  dirspan:  49
+  dir:          /j  dirspan:  45
+  dir:          /t  dirspan:  51
+               avg  dirspan:  48.33
+
+Dirspan has decreased because when we have a new directory we don't allocate
+only 1 group, since with 5 inodes per group there is place only for 4 files
+within same group, but a pair of consecutive groups so we have now space
+for an additional 5 files in the next allocated group.
+
+8. One last policy change we will explore relates to file fragmentation. Run
+./ffs.py -f in.fragmented -v and see if you can predict how the
+files that remain are allocated. Run with -c to confirm your answer. What
+is interesting about the data layout of file /i? Why is it problematic?
+
+When file /i is created it uses first empty inode and first empty data blocks
+within same group as its directory, but not consecutive 8 data blocks, but
+since it finds a fragmented group after deletion of few files, it places
+/i data blocks interleaved among data blocks for other files so filespan of 
+/i is large 21: distance from first available inode (far to the left) and furthest
+data block (far to the right). When accessing sequentially /i we loose some 
+rotational delay when jumping over other files.
+
+group inodes    data
+    0 /ib-d-f-h- /ibidifihi iii------- ----------
+    1 ---------- ---------- ---------- ----------
+    2 ---------- ---------- ---------- ----------
+    3 ---------- ---------- ---------- ----------
+    4 ---------- ---------- ---------- ----------
+    5 ---------- ---------- ---------- ----------
+    6 ---------- ---------- ---------- ----------
+    7 ---------- ---------- ---------- ----------
+    8 ---------- ---------- ---------- ----------
+    9 ---------- ---------- ---------- ----------
+  file:         /i  filespan:  21
+
+9. A new policy, which we call contiguous allocation (-C), tries to ensure that
+each file is allocated contiguously. Specifically, with -C n, the file system
+tries to ensure that n contiguous blocks are free within a group before allocating
+a block. Run ./ffs.py -f in.fragmented -v -C 2 -c to
+see the difference. How does layout change as the parameter passed to -C
+increases? Finally, how does -C affect filespan and dirspan?
+
+When we want to allocate the 8 blocks for /i we don't allocate immediately
+first available block, we assume the file might require in the future more blocks
+so we look for 2 consecutive free data blocks. Since the fragmentation in this 
+case was of only 1 block (after deletion of 1 data block files), /i gets
+allocated all its 8 data blocks consecutively
+
+group inodes    data
+    0 /ib-d-f-h- /-b-d-f-hi iiiiiii--- ----------
+    1 ---------- ---------- ---------- ----------
+    2 ---------- ---------- ---------- ----------
+    3 ---------- ---------- ---------- ----------
+    4 ---------- ---------- ---------- ----------
+    5 ---------- ---------- ---------- ----------
+    6 ---------- ---------- ---------- ----------
+    7 ---------- ---------- ---------- ----------
+    8 ---------- ---------- ---------- ----------
+    9 ---------- ---------- ---------- ----------
+
+./ffs.py -f in.fragmented -v -c -T 
+span: files
+  file:         /b  filespan:  10
+  file:         /d  filespan:  10
+  file:         /f  filespan:  10
+  file:         /h  filespan:  10
+  file:         /i  filespan:  21
+               avg  filespan:  12.20
+
+span: directories
+  dir:           /  dirspan:  22
+               avg  dirspan:  22.00
+
+./ffs.py -f in.fragmented -v -C 2 -c -T
+span: files
+  file:         /b  filespan:  10
+  file:         /d  filespan:  10
+  file:         /f  filespan:  10
+  file:         /h  filespan:  10
+  file:         /i  filespan:  25
+               avg  filespan:  13.00
+
+span: directories
+  dir:           /  dirspan:  26
+               avg  dirspan:  26.00
+
+With contiguous allocation dirspan and filespan for /i both increase
+since furthest data block is farther to the right, there are still unallocated
+blocks in between which were not used by /i, but all data blocks for /i
+are in consecutive data blocks so we improve positioning time

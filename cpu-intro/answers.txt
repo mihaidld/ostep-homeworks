@@ -1,0 +1,136 @@
+Homework (Simulation)
+This program, process-run.py, allows you to see how process states
+change as programs run and either use the CPU (e.g., perform an add
+instruction) or do I/O (e.g., send a request to a disk and wait for it to
+complete). See the README for details.
+
+Questions
+1. Run process-run.py with the following flags: -l 5:100,5:100.
+What should the CPU utilization be (e.g., the percent of time the
+CPU is in use?) Why do you know this? Use the -c and -p flags to
+see if you were right.
+
+For both processes in the list there 100% chance 
+that an instruction will use CPU so 
+CPU busy all 10 clock ticks: 100%
+
+2. Now run with these flags: ./process-run.py -l 4:100,1:0.
+These flags specify one process with 4 instructions (all to use the
+CPU), and one that simply issues an I/O and waits for it to be done.
+How long does it take to complete both processes? Use -c and -p
+to find out if you were right.
+
+Process 0 has 4 instructions all using the CPU so during first 4 clock ticks
+process 0 is in RUN state and using CPU, while process 1 is READY. 
+From time 5 process 0 is DONE and process 1 in RUN uses CPU to issue IO request
+During 5 clocks ticks, process 1 is BLOCKED waiting for IO completion so 
+CPU is idle and IO devices busy, then process 1 in RUN again uses CPU for IO completion.
+So total clock ticks: 4 (for 0 to complete) + 7 (for 1 to issue IO, wait 
+and complete) = 11
+
+3. Switch the order of the processes: -l 1:0,4:100. What happens
+now? Does switching the order matter? Why? (As always, use -c
+and -p to see if you were right)
+
+Process 0 has 1 IO instruction so in time 1 process 0 is RUN on CPU to
+issue IO request, while process 1 is READY. 
+As per default policy system switches when process 0 issues IO so 
+in times 2,3,4,5 process 0 is BLOCKED and process 1 in RUN uses CPU, 
+while process 0 keeps IO busy
+In time 6 process 1 is DONE, so as per policy system switches to process 0,
+but process 0 still has to wait 1 time unit so remains BLOCKED, CPU idle and IO busy.
+Time 7 process 0 is RUN uses CPU to complete IO.
+
+4. We’ll now explore some of the other flags. One important flag is
+-S, which determines how the system reacts when a process issues an I/O. 
+With the flag set to SWITCH ON END, the system
+will NOT switch to another process while one is doing I/O, 
+instead waiting until the process is completely finished. 
+What happens when you run the following two processes (-l 1:0,4:100
+-c -S SWITCH ON END), one doing I/O and the other doing CPU
+work?
+
+Since switch policy is to wait until process finished, in time 1 like before,
+then times 2-6 process 0 BLOCKED, proces 1 still READY, 
+so CPU idle and IO busy. Time 7 process 0 RUN uses CPU to complete IO, 
+process 1 still READY and waiting. Finally from 8-11, when process 0 DONE, 
+process 1 in RUN uses CPU. So it tooks 11 clock ticks instead of 7, 
+CPU was idle more time and process 0 still completed after 7 clock ticks
+
+5. Now, run the same processes, but with the switching behavior set
+to switch to another process whenever one is WAITING for I/O (-l
+1:0,4:100 -c -S SWITCH ON IO). What happens now? Use -c
+and -p to confirm that you are right.
+
+Default behaviour: answer 3
+
+6. One other important behavior is what to do when an I/O completes. 
+With -I IO RUN LATER, when an I/O completes, the process that issued 
+it is not necessarily run right away; 
+rather, whatever was running at the time keeps running. 
+What happens when
+you run this combination of processes? (./process-run.py -l
+3:0,5:100,5:100,5:100 -S SWITCH ON IO -c -p -I
+IO RUN LATER) Are system resources being effectively utilized?
+In the beginning it seems like system resources are used effectively
+since while process 0 is BLOCKED, for 5 clock ticks, process 1 uses CPU 
+for its 5 instructions, but in time 7 when process 1 is DONE, process 0
+becomes READY and process 2 starts running, then when 2 completes 3 starts running
+and only when 3 is DONE, process 0 runs again to complete IO. 
+But process has 2 more IO instructions so while it waits for IO, 
+CPU remains idle since the other processes aer DONE.
+
+7. Now run the same processes, but with -I IO RUN IMMEDIATE set,
+which immediately runs the process that issued the I/O. How does
+this behavior differ? 
+Why might running a process that just completed an I/O again be a good idea?
+
+Since we have 1 process with 3 IO instructions followed by 3 processes each with
+5 CPU instructions, while process 0 waits for IO completion process 1 keeps CPU busy
+and finishes, then process 0 runs again because IO completed, 
+then while it waits, process 1 uses CPU and finishes, then back to process 0
+to complete IO and issue a new one, then, while it waits we finish process 3.
+So when we have a process that has IO instructions it's better to return running it 
+immediately when IO completes, since it might have other IO instructions and, 
+during their waiting time, use CPU for other processes. 
+
+8. Now run with some randomly generated processes using flags -s
+1 -l 3:50,3:50 or -s 2 -l 3:50,3:50 or -s 3 -l 3:50,
+3:50. See if you can predict how the trace will turn out. 
+What happens when you use the flag -I IO RUN IMMEDIATE versus that
+flag -I IO RUN LATER? What happens when you use the flag -S
+SWITCH ON IO versus -S SWITCH ON END?
+
+Using the seed we get different orders of types of instructions for the 3 
+that compose each process(e.g CPU CPU CPU or IO IO CPU or CPU IO CPU etc.)
+When the policy is to run immediately after IO completion, 
+the process for which IO completed is again in RUN state and 
+can use the CPU to complete IO and continue executing its instructions. 
+It's good policy if the 1st process has also other IO instructions 
+so we can take care of the other processes instructions while 
+waiting for completion of 1st process's IO instructions. 
+It's neutral if first processes following instructions are CPU since
+these can be executed later.
+When the policy is to run later after IO completion, the other processes keep
+executing before we get back to the 1st process. If the other processes have
+CPU instructions it's ok since they will keep CPU busy, 
+and if they have also IO instructions it's also OK since they will be blocked
+and execution will come back to 1st processor.
+When the policy is switch on end of the process it's ok only if 
+the 1st process has only CPU instructions, but if it has IO instructions, it's
+bad policy since CPU will remain idle a lot while waiting for IO completion
+without it being used by other processes.
+When the policy is switch on IO issue it's good since we use CPU during waiting
+time for other processes, but if the 1st process is more important than the others
+it can wait for some time before it can continue execution.
+
+So except for the case when a process if very important so we can switch on end, 
+most of the times to use ressources efficiently it's better to switch on IO issue.
+As for the choice between run immediately after IO completion or later, 
+if the process has many other IO instructions (probably the case for a progran to
+make multiple reads/writes) it's better to run immediately. If the later processes
+have many IO instructions, these might remain to be exceuted in the end 
+while we keep going back to finish first processes with run immediately,
+so these instructions will keep the CPU idle in the end since firts processes
+are DONE. In most cases run immediately and run later are similar.
+Best combination is probably the default one: switch on IO and run later.

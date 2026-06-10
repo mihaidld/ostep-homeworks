@@ -1,0 +1,105 @@
+Homework (Code)
+In this homework, we’ll just learn about a few useful tools to examine
+virtual memory usage on Linux-based systems. This will only be a brief
+hint at what is possible; you’ll have to dive deeper on your own to truly
+become an expert (as always!).
+
+Questions
+1. The first Linux tool you should check out is the very simple tool
+free. First, type man free and read its entire manual page; it’s
+short, don’t worry!
+
+2. Now, run free, perhaps using some of the arguments that might
+be useful (e.g., -m, to display memory totals in megabytes). How
+much memory is in your system? How much is free? Do these
+numbers match your intuition?
+
+On VirtualBox with allocated 2 processors, 4096 MB memory 
+free -m
+               total        used        free      shared  buff/cache   available
+Mem:            3914        2382         160         110        1714        1532
+Swap:              0           0           0
+
+Total memory 1967, free 1452. 
+Yes partially since part of memory is used by guest OS Ubuntu desktop: 2382 Mb used
+Not clear why total is not 4096, although close
+
+3. Next, create a little program that uses a certain amount of memory,
+called memory-user.c. This program should take one commandline argument: 
+the number of megabytes of memory it will use.
+When run, it should allocate an array, and constantly stream through
+the array, touching each entry. 
+The program should do this indefinitely, or, perhaps, 
+for a certain amount of time also specified at the command line.
+
+4. Now, while running your memory-user program, 
+also (in a different terminal window, but on the same machine) 
+run the free tool. 
+How do the memory usage totals change when your program is running? 
+How about when you kill the memory-user program?
+Do the numbers match your expectations? 
+Try this for different amounts of memory usage. 
+What happens when you use really large amounts of memory?
+
+
+
+5. Let’s try one more tool, known as pmap. Spend some time, and read
+the pmap manual page in detail.
+
+
+
+6. To use pmap, you have to know the process ID of the process you’re
+interested in. Thus, first run ps auxw to see a list of all processes;
+then, pick an interesting one, such as a browser. You can also use
+your memory-user program in this case (indeed, you can even
+have that program call getpid() and print out its PID for your
+convenience).
+
+./memory-user 120
+
+pmap -X 15064
+15064:   ./memory-user 120
+         Address Perm   Offset Device  Inode   Size  Rss Pss Pss_Dirty Referenced Anonymous KSM LazyFree ShmemPmdMapped FilePmdMapped Shared_Hugetlb Private_Hugetlb Swap SwapPss Locked THPeligible Mapping
+    60d09278d000 r--p 00000000  08:02 266212      4    4   4         0          4         0   0        0              0             0              0               0    0       0      0           0 memory-user
+    60d09278e000 r-xp 00001000  08:02 266212      4    4   4         0          4         0   0        0              0             0              0               0    0       0      0           0 memory-user
+    60d09278f000 r--p 00002000  08:02 266212      4    4   4         0          4         0   0        0              0             0              0               0    0       0      0           0 memory-user
+    60d092790000 r--p 00002000  08:02 266212      4    4   4         4          4         4   0        0              0             0              0               0    0       0      0           0 memory-user
+    60d092791000 rw-p 00003000  08:02 266212      4    4   4         4          4         4   0        0              0             0              0               0    0       0      0           0 memory-user
+    60d09d04b000 rw-p 00000000  00:00      0    132    4   4         4          4         4   0        0              0             0              0               0    0       0      0           0 [heap]
+    725b1298f000 rw-p 00000000  00:00      0 117188    4   4         4          4         4   0        0              0             0              0               0    0       0      0           0 
+    725b19c00000 r--p 00000000  08:02 535839    160  160   1         0        160         0   0        0              0             0              0               0    0       0      0           0 libc.so.6
+    725b19c28000 r-xp 00028000  08:02 535839   1568  992   8         0        992         0   0        0              0             0              0               0    0       0      0           0 libc.so.6
+    725b19db0000 r--p 001b0000  08:02 535839    316  128   1         0        128         0   0        0              0             0              0               0    0       0      0           0 libc.so.6
+    725b19dff000 r--p 001fe000  08:02 535839     16   16  16        16         16        16   0        0              0             0              0               0    0       0      0           0 libc.so.6
+    725b19e03000 rw-p 00202000  08:02 535839      8    8   8         8          8         8   0        0              0             0              0               0    0       0      0           0 libc.so.6
+    725b19e05000 rw-p 00000000  00:00      0     52   16  16        16         16        16   0        0              0             0              0               0    0       0      0           0 
+    725b19e84000 rw-p 00000000  00:00      0     12    8   8         8          8         8   0        0              0             0              0               0    0       0      0           0 
+    725b19e95000 rw-p 00000000  00:00      0      8    4   4         4          4         4   0        0              0             0              0               0    0       0      0           0 
+    725b19e97000 r--p 00000000  00:00      0     16    0   0         0          0         0   0        0              0             0              0               0    0       0      0           0 [vvar]
+    725b19e9b000 r--p 00000000  00:00      0      8    0   0         0          0         0   0        0              0             0              0               0    0       0      0           0 [vvar_vclock]
+    725b19e9d000 r-xp 00000000  00:00      0      8    4   0         0          4         0   0        0              0             0              0               0    0       0      0           0 [vdso]
+    725b19e9f000 r--p 00000000  08:02 535626      4    4   0         0          4         0   0        0              0             0              0               0    0       0      0           0 ld-linux-x86-64.so.2
+    725b19ea0000 r-xp 00001000  08:02 535626    172  172   1         0        172         0   0        0              0             0              0               0    0       0      0           0 ld-linux-x86-64.so.2
+    725b19ecb000 r--p 0002c000  08:02 535626     40   40   0         0         40         0   0        0              0             0              0               0    0       0      0           0 ld-linux-x86-64.so.2
+    725b19ed5000 r--p 00036000  08:02 535626      8    8   8         8          8         8   0        0              0             0              0               0    0       0      0           0 ld-linux-x86-64.so.2
+    725b19ed7000 rw-p 00038000  08:02 535626      8    8   8         8          8         8   0        0              0             0              0               0    0       0      0           0 ld-linux-x86-64.so.2
+    7ffe82838000 rw-p 00000000  00:00      0    136   20  20        20         20        20   0        0              0             0              0               0    0       0      0           0 [stack]
+ffffffffff600000 --xp 00000000  00:00      0      4    0   0         0          0         0   0        0              0             0              0               0    0       0      0           0 [vsyscall]
+                                             ====== ==== === ========= ========== ========= === ======== ============== ============= ============== =============== ==== ======= ====== =========== 
+                                             119884 1616 127       104       1616       104   0        0              0             0              0               0    0       0      0           0 KB 
+
+
+7. Now run pmap on some of these processes, using various flags (like
+-X) to reveal many details about the process. What do you see?
+How many different entities make up a modern address space, as
+opposed to our simple conception of code/stack/heap?
+Around 25 entities
+
+
+8. Finally, let’s run pmap on your memory-user program, 
+with different amounts of used memory. 
+What do you see here? Does the output from pmap match your expectations?
+
+One of the entities with size 117188 Kibibytes = 120 Mb used
+as 1st argument to memory-user program
+117188*1024 = 120 Mb

@@ -1,0 +1,287 @@
+Homework (Simulation)
+In this homework, you’ll use checksum.py to investigate various aspects
+of checksums.
+
+Questions
+1. First just run checksum.py with no arguments. Compute the additive,
+XOR-based, and Fletcher checksums. Use -c to check your
+answers.
+
+./checksum.py
+
+OPTIONS seed 0
+OPTIONS data_size 4
+OPTIONS data 
+
+Decimal:          216        194        107         66 
+Hex:             0xd8       0xc2       0x6b       0x42 
+Bin:       0b11011000 0b11000010 0b01101011 0b01000010 
+
+Add:      71 (1000111)
+Xor:      51 (00110011)
+Fletcher: 71, 196 (01001001,11000100)
+
+2. Now do the same, but vary the seed (-s) to different values.
+
+./checksum.py -s 1
+
+OPTIONS seed 1
+OPTIONS data_size 4
+OPTIONS data 
+
+Decimal:           34        216        195         65 
+Hex:             0x22       0xd8       0xc3       0x41 
+Bin:       0b00100010 0b11011000 0b11000011 0b01000001 
+
+Add:      254 (11111110)
+Xor:      120 (01111000)
+Fletcher: 0, 219 (00000000, 11011011)
+
+3. Sometimes the additive and XOR-based checksums produce the
+same checksum (e.g., if the data value is all zeroes). Can you pass
+in a 4-byte data value (using the -D flag, e.g., -D a,b,c,d) that
+does not contain only zeroes and leads the additive and XOR-based
+checksum having the same value? In general, when does this occur?
+Check that you are correct with the -c flag.
+
+If there is no carry during bitwise addition of the 4 bytes 
+(except for left most significant bit where even is there is a carry
+because of overflow it gets discarded): so the sum of the bits on each column
+must be max 1, or among the 4 bits we have either all 0s or one 1 and three 0's 
+e.g. 
+10000000
+10101010
+01010101
+00000000
+
+01111111
+
+./checksum.py -D 128,170,85,0 -c
+
+OPTIONS seed 0
+OPTIONS data_size 4
+OPTIONS data 128,170,85,0
+
+Decimal:          128        170         85          0 
+Hex:             0x80       0xaa       0x55       0x00 
+Bin:       0b10000000 0b10101010 0b01010101 0b00000000 
+
+Add:            127       (0b01111111)
+Xor:            127       (0b01111111)
+Fletcher(a,b):  128,172   (0b10000000,0b10101100)
+
+4. Now pass in a 4-byte value that you know will produce a different
+checksum values for additive and XOR. In general, when does this
+occur?
+
+Whenever we have a carry during bitwise addition for any bit except for
+leftmost significant bit.
+e.g. 
+10000001
+10101010
+01010101
+00000000
+
+10000000
+
+./checksum.py -D 129,170,85,0 -c
+
+OPTIONS seed 0
+OPTIONS data_size 4
+OPTIONS data 129,170,85,0
+
+Decimal:          129        170         85          0 
+Hex:             0x81       0xaa       0x55       0x00 
+Bin:       0b10000001 0b10101010 0b01010101 0b00000000 
+
+Add:            128       (0b10000000)
+Xor:            126       (0b01111110)
+Fletcher(a,b):  129,176   (0b10000001,0b10110000)
+
+5. Use the simulator to compute checksums twice (once each for a different
+set of numbers). The two number strings should be different
+(e.g., -D a1,b1,c1,d1 the first time and -D a2,b2,c2,d2 the
+second) but should produce the same additive checksum. In general,
+when will the additive checksum be the same, even though the
+data values are different? Check your specific answer with the -c
+flag.
+
+When we do bitwise addition, we have same bits, in the same position, but
+beloging to different numbers (we start with 4 numbers then we 
+scramble the bits to get 4 new numbers, altough we have same 4 bits for 
+same position)
+e.g.
+10010110
+01010101
+10001000
+00011111
+
+00011001
+10011111
+01010110
+10000100
+
+./checksum.py -D 150,85,136,31 -c
+
+Decimal:          150         85        136         31 
+Hex:             0x96       0x55       0x88       0x1f 
+Bin:       0b10010110 0b01010101 0b10001000 0b00011111 
+
+Add:            146       (0b10010010)
+
+./checksum.py -D 25,159,86,132 -c
+
+Decimal:           25        159         86        132 
+Hex:             0x19       0x9f       0x56       0x84 
+Bin:       0b00011001 0b10011111 0b01010110 0b10000100 
+
+Add:            146       (0b10010010)
+
+6. Now do the same for the XOR checksum.
+
+When we do XOR bit by bit, we have in the same position, both even/odd
+number of 1's but belonging to different numbers 
+
+e.g.
+10010110
+01010101
+10001000
+00011111
+
+01101001
+01011100
+01001101
+00101100
+
+./checksum.py -D 150,85,136,31 -c
+
+Decimal:          150         85        136         31 
+Hex:             0x96       0x55       0x88       0x1f 
+Bin:       0b10010110 0b01010101 0b10001000 0b00011111 
+
+Xor:             84       (0b01010100)
+
+
+./checksum.py -D 105,92,77,44 -c 
+
+Decimal:          105         92         77         44 
+Hex:             0x69       0x5c       0x4d       0x2c 
+Bin:       0b01101001 0b01011100 0b01001101 0b00101100 
+
+Xor:             84       (0b01010100)
+
+7. Now let’s look at a specific set of data values. The first is: -D
+1,2,3,4. What will the different checksums (additive, XOR, Fletcher)
+be for this data? Now compare it to computing these checksums
+over -D 4,3,2,1. What do you notice about these three checksums?
+How does Fletcher compare to the other two? How is Fletcher
+generally “better” than something like the simple additive checksum?
+
+If we have same numbers, but in different order additive and XOR 
+will give same checksums, but Fletcher gives different same result for 
+s1, but different one for s2 byte (20 vs 30)
+s2 for 1,2,3,4 = 1 + (1+(1+2)) + (1+(1+2)+(1+2+3)) + (1+(1+2)+(1+2+3)+(1+2+3+4))
+s2 for 4,3,2,1 = 4 + (4+(4+3)) + (4+(4+3)+(4+3+2)) + (4+(4+3)+(4+3+2)+(4+3+2+1))
+
+./checksum.py -D 1,2,3,4 -c
+
+OPTIONS seed 0
+OPTIONS data_size 4
+OPTIONS data 1,2,3,4
+
+Decimal:            1          2          3          4
+Hex:             0x01       0x02       0x03       0x04
+Bin:       0b00000001 0b00000010 0b00000011 0b00000100
+
+Add:             10       (0b00001010)
+Xor:              4       (0b00000100)
+Fletcher(a,b):   10, 20   (0b00001010,0b00010100)
+
+./checksum.py -D 4,3,2,1 -c      
+
+OPTIONS seed 0
+OPTIONS data_size 4
+OPTIONS data 4,3,2,1
+
+Decimal:            4          3          2          1 
+Hex:             0x04       0x03       0x02       0x01 
+Bin:       0b00000100 0b00000011 0b00000010 0b00000001 
+
+Add:             10       (0b00001010)
+Xor:              4       (0b00000100)
+Fletcher(a,b):   10, 30   (0b00001010,0b00011110)
+
+8. No checksum is perfect. Given a particular input of your choosing,
+can you find other data values that lead to the same Fletcher checksum?
+When, in general, does this occur? Start with a simple data
+string (e.g., -D 0,1,2,3) and see if you can replace one of those
+numbers but end up with the same Fletcher checksum. As always,
+use -c to check your answers.
+
+The sum of the numbers must be the same for s1 to match.
+For s2 to match we need that the sums of seriesalso to match.
+
+./checksum.py -D 0,1,2,3 -c
+
+Decimal:            0          1          2          3 
+Hex:             0x00       0x01       0x02       0x03 
+Bin:       0b00000000 0b00000001 0b00000010 0b00000011 
+
+Fletcher(a,b):    6, 10   (0b00000110,0b00001010)
+
+./checksum.py -D 0,2,0,4 -c  
+
+Decimal:            0          2          0          4 
+Hex:             0x00       0x02       0x00       0x04 
+Bin:       0b00000000 0b00000010 0b00000000 0b00000100 
+
+Fletcher(a,b):    6, 10   (0b00000110,0b00001010)
+
+Homework (Code)
+In this part of the homework, you’ll write some of your own code to
+implement various checksums.
+
+Questions
+1. Write a short C program (called check-xor.c) that computes an
+XOR-based checksum over an input file, and prints the checksum as
+output. Use a 8-bit unsigned char to store the (one byte) checksum.
+Make some test files to see if it works as expected.
+
+https://github.com/xxyzz/ostep-hw/tree/master/45
+
+2. Now write a short C program (called check-fletcher.c) that
+computes the Fletcher checksum over an input file. Once again,
+test your program to see if it works.
+
+https://github.com/xxyzz/ostep-hw/tree/master/45
+
+3. Now compare the performance of both: is one faster than the other?
+How does performance change as the size of the input file changes?
+Use internal calls to gettimeofday to time the programs. Which
+should you use if you care about performance? About checking
+ability?
+
+./check-xor.out test.txt     
+XOR-based checksum: 4
+time(seconds): 0.000051
+
+./check-fletcher.out test.txt
+Fletcher checksum: 10, 20
+time(seconds): 0.000073
+
+XOR is faster, but Fletcher better for checking ability
+
+4. Read about the 16-bit CRC and then implement it. Test it on a number
+of different inputs to ensure that it works. How is its performance
+as compared to the simple XOR and Fletcher? How about
+its checking ability?
+
+
+5. Now build a tool (create-csum.c) that computes a single-byte
+checksum for every 4KB block of a file, and records the results in
+an output file (specified on the command line). Build a related tool
+(check-csum.c) that reads a file, computes the checksums over
+each block, and compares the results to the stored checksums stored
+in another file. If there is a problem, the program should print that
+the file has been corrupted. Test the program by manually corrupting
+the file.

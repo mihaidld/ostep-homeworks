@@ -1,0 +1,196 @@
+Homework (Simulation)
+The program, malloc.py, lets you explore the behavior of a simple
+free-space allocator as described in the chapter. See the README for
+details of its basic operation.
+
+Questions
+1. First run with the flags -n 10 -H 0 -p BEST -s 0 to generate 
+a few random allocations and frees. 
+Can you predict what alloc()/free() will return? 
+Can you guess the state of the free list after each request? 
+What do you notice about the free list over time?
+
+seed 0
+size 100
+baseAddr 1000
+headerSize 0
+alignment -1
+policy BEST
+listOrder ADDRSORT
+coalesce False
+numOps 10
+range 10
+percentAlloc 50
+allocList 
+compute False
+
+ptr[0] = Alloc(3) returned 1000
+List? size 1 [addr: 1003 sz: 97]
+
+Free(ptr[0])
+returned 0
+List? size 2 [addr: 1000 sz: 3] [addr: 1003 sz: 97]
+
+ptr[1] = Alloc(5) returned 1003
+List? size 2 [addr: 1000 sz: 3] [addr: 1008 sz: 92]
+
+Free(ptr[1])
+returned 0
+List? size 3 [addr: 1000 sz: 3] [addr: 1003 sz: 5] [addr: 1008 sz: 92]
+
+ptr[2] = Alloc(8) returned 1008
+List? size 3 [addr: 1000 sz: 3] [addr: 1003 sz: 5] [addr: 1016 sz: 84]
+
+Free(ptr[2])
+returned 0
+List? size 4 [addr: 1000 sz: 3] [addr: 1003 sz: 5] [addr: 1008 sz: 8] 
+[addr: 1016 sz: 84]
+
+ptr[3] = Alloc(8) returned 1008
+List? size 3 [addr: 1000 sz: 3] [addr: 1003 sz: 5] [addr: 1016 sz: 84]
+
+Free(ptr[3])
+returned 0
+List? size 4 [addr: 1000 sz: 3] [addr: 1003 sz: 5] [addr: 1008 sz: 8] 
+[addr: 1016 sz: 84]
+
+ptr[4] = Alloc(2) returned 1000
+List? size 4 [addr: 1002 sz: 1] [addr: 1003 sz: 5] [addr: 1008 sz: 8] 
+[addr: 1016 sz: 84]
+
+ptr[5] = Alloc(7) returned 1008
+List? size 4 [addr: 1002 sz: 1] [addr: 1003 sz: 5] [addr: 1015 sz: 1] 
+[addr: 1016 sz: 84]
+
+Over time free list gets fragmented and accumulates many small segments 
+(of 1) with best fit policy.
+
+2. How are the results different when using a WORST fit policy to
+search the free list (-p WORST)? What changes?
+With BEST fit policy we search full list (O(n)) to find smallest size that
+fits request+header, with WORST we still search full list (O(n)) to find
+largest size free segment. Since we choose every time largest segment
+we keep in free list only larger segments and avoid accumulating small 
+unusable ones  (like with BEST fit), but if we ever need a larger one 
+of 100 later we can not accomodate this request altough we have many 90
+segments.
+
+./malloc.py -n 10 -H 0 -p WORST -s 0 -c
+
+Free List [ Size 5 ]: [ addr:1000 sz:3 ][ addr:1003 sz:5 ]
+[ addr:1008 sz:8 ][ addr:1016 sz:8 ][ addr:1033 sz:67 ]
+
+After 10 operations free list since we dont reuse freed segments and only
+remove chunks from larger segment we have longer list (5 vs 4 for BEST)
+with size of largest (67 vs 84 for BEST)
+
+3. What about when using FIRST fit (-p FIRST)? 
+What speeds up when you use first fit?
+
+When allocating we might not need to search the full list 
+(like with BEST and  WORST) and stop after finding first segment that fits 
+request+header (O(n) still since we might still search full list some times, 
+but Big Omega(1) since we could settle with the 1st segment)
+
+./malloc.py -n 10 -H 0 -p FIRST -s 0 -c
+After 10 operations similar to BEST
+Free List [ Size 4 ]: [ addr:1002 sz:1 ][ addr:1003 sz:5 ][ addr:1015 sz:1 ]
+[ addr:1016 sz:84 ]
+
+4. For the above questions, how the list is kept ordered can affect the
+time it takes to find a free location for some of the policies. 
+Use the different free list orderings (-l ADDRSORT, -l SIZESORT+,
+-l SIZESORT-) to see how the policies and the list orderings interact.
+
+With ADDRSORT: whenever a segment is freed, it is inserted in the free list
+based on its address to keep list sorted by address O(n)
+Combined with BEST or FIRST fit it's going to allocate mostly from beginning of list
+(smaller addresses). Combined with WORST it's going to allocate mostly from
+end of list (larger segments).
+
+With SIZESORT+: whenever a segment is freed, it is inserted in the free 
+list based on its size to keep list sorted by size increasingly O(n)
+Combined with BEST we increase efficiency since we can stop searching after
+find 1st fit (like FIRST), we don't need to keep looking till the end.
+Combined with WORST, it still is O(n) since we need to find last segment
+in list when allocating.
+
+With SIZESORT-: whenever a segment is freed, it is inserted in the free 
+list based on its size to keep list sorted by size decreasingly O(n)
+Combined with WORST we increase efficiency since we can stop searching after 
+1st segment (like FIRST, either fit or not sufficient space), we don't need 
+to keep looking till the end. Combined with BEST, it still is O(n) since 
+we need to find last segment in list when allocating.
+
+5. Coalescing of a free list can be quite important. Increase the number
+of random allocations (say to -n 1000). What happens to larger
+allocation requests over time? Run with and without coalescing
+(i.e., without and with the -C flag). 
+What differences in outcome do you see? How big is the free list over time 
+in each case? 
+Does the ordering of the list matter in this case?
+
+Without coalescing, list gets fragmented over time and contains contiguous
+free segments that can't accomodate larger accomodation requests.
+e.g.
+./malloc.py -n 1000 -H 0 -p FIRST -s 0 -c
+Without coalesce after 1000 operations list has size 51 and contains many 
+small segments, with coalesce size 1 with large segments. With SIZESORT+ 
+we get same result as with BEST (doesn't matter sorting) size 31 
+
+./malloc.py -n 1000 -H 0 -p BEST -s 0 -c 
+size 31 after 1000 operations. Less fragmented than FIRST since we found
+bets fit, but more expensive during each allocation.
+
+./malloc.py -n 1000 -H 0 -p WORST -s 0 -c
+size 100 after 1000 operations containg only segments of 1, and many requests
+not allocated since the largest chunk kept splitting. WORST needs to be combined 
+with coalescing, even with SIZESORT- we still get fragmentation and unfulfilled
+allocation requests
+
+6. What happens when you change the percent allocated fraction -P
+to higher than 50? 
+What happens to allocations as it nears 100? 
+What about as the percent nears 0?
+
+When we have more allocations than free operations we might not be able to fulfill
+allocation requests and need to avoid fragmentation  (with coalesce) and 
+use FIRST fit (with list sorted SIZESORT+) or BEST fit 
+to increase chances of fulfilling requests. But still if there are too many 
+allocations we can't satisfy them
+
+With 75% allocations
+./malloc.py -n 1000 -H 0 -s 0 -P 75 -c
+./malloc.py -n 1000 -H 0 -s 1 -P 75 -c | grep "returned -1" | wc -l
+     470
+Free List [ Size 43 ] with 470 allocation requests unfulfilled
+
+./malloc.py -n 1000 -H 0 -s 0 -P 75 -c -C
+./malloc.py -n 1000 -H 0 -s 1 -P 75 -c | grep "returned -1" | wc -l
+     456
+
+Free List [ Size 6 ] with 456 requests unfulfilled
+
+With 25% allocations
+./malloc.py -n 1000 -H 0 -s 0 -P 25 -c
+./malloc.py -n 1000 -H 0 -s 1 -P 25 -c | grep "returned -1" | wc -l
+     19
+Free List [ Size 47 ] with 19 allocation requests unfulfilled
+
+./malloc.py -n 1000 -H 0 -s 0 -P 25 -c -C
+./malloc.py -n 1000 -H 0 -s 1 -P 25 -c | grep "returned -1" | wc -l
+     0
+
+Free List [ Size 1 ] with all requests fulfilled
+
+7. What kind of specific requests can you make to generate a highly fragmented 
+free space? 
+Use the -A flag to create fragmented free lists, and see how different 
+policies and options change the organization of the free list
+
+./malloc.py -c -A +20,+20,+20,+20,+20,-0,-1,-2,-3,-4 -C
+
+Using WORST fit without coalescing fragments it 
+ ./malloc.py -n 20 -H 0 -p WORST -s 0 -c
+or BEST fit (with list SIZESORT+) or FIRST fit which creates many small segments
+./malloc.py -n 20 -H 0 -p BEST -l SIZESORT+ -s 0 -c

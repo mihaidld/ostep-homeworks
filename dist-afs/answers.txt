@@ -1,0 +1,195 @@
+Homework (Simulation)
+This section introduces afs.py, a simple AFS simulator you can use
+to shore up your knowledge of how the Andrew File System works. Read
+the README file for more details.
+
+Questions
+1. Run a few simple cases to make sure you can predict what values
+will be read by clients. Vary the random seed flag (-s) and see
+if you can trace through and predict both intermediate values as
+well as the final values stored in the files. Also vary the number of
+files (-f), the number of clients (-C), and the read ratio (-r, from
+between 0 to 1) to make it a bit more challenging. You might also
+want to generate slightly longer traces to make for more interesting
+interactions, e.g., (-n 2 or higher).
+
+./afs.py -C 2 -n 1 -s 0                                
+      Server                         c0                          c1               
+file:a contains:0
+                                                        open:a [fd:0]
+                            open:a [fd:0]
+                                                        read:0 -> 0
+                            write:0 0 -> 1
+                            close:0
+                                                        invalidate file:a cache: {'a': {'data': 0, 'dirty': False, 'refcnt': 1, 'valid': True}}
+                                                        close:0
+file:a contains:1
+
+./afs.py -f 2 -C 2 -n 2 -s 1 -r 0.25
+      Server                         c0                          c1               
+file:a contains:0
+file:b contains:1
+                            open:a [fd:0]
+                            write:0 0 -> 2
+                                                        open:a [fd:0]
+                            close:0
+                                                        invalidate file:a cache: {'a': {'data': 0, 'dirty': False, 'refcnt': 1, 'valid': True}}
+                                                        write:0 0 -> 3
+                            open:b [fd:1]
+                            write:1 1 -> 4
+                                                        close:0
+                            invalidate file:a cache: {'a': {'data': 2, 'dirty': False, 'refcnt': 0, 'valid': True}, 'b': {'data': 4, 'dirty': True, 'refcnt': 1, 'valid': True}}
+                            close:1
+                                                        open:b [fd:1]
+                                                        write:1 4 -> 5
+                                                        close:1
+                            invalidate file:b cache: {'a': {'data': 2, 'dirty': False, 'refcnt': 0, 'valid': False}, 'b': {'data': 4, 'dirty': False, 'refcnt': 0, 'valid': True}}
+file:a contains:3
+file:b contains:5
+
+2. Now do the same thing and see if you can predict each callback that
+the AFS server initiates. Try different random seeds, and make sure
+to use a high level of detailed feedback (e.g., -d 3) to see when callbacks
+occur when you have the program compute the answers for
+you (with -c). Can you guess exactly when each callback occurs?
+What is the precise condition for one to take place?
+
+The server knows which files were accessed by different clients so whenever a 
+client closes file after writing and updating the file on the server, the server
+sends a callback message to the other clients having accessed the file to
+invalidate their cache
+
+./afs.py -f 2 -C 2 -n 2 -s 2 -r 0.25   
+      Server                         c0                          c1               
+file:a contains:0
+file:b contains:1
+                                                        open:b [fd:0]
+                                                        write:0 1 -> 2
+                                                        close:0
+                            open:b [fd:0]
+                            write:0 2 -> 3
+                            close:0
+callback: c:c1 file:b
+                                                        invalidate file:b cache: {'b': {'data': 2, 'dirty': False, 'refcnt': 0, 'valid': True}}
+                                                        open:b [fd:1]
+                                                        write:1 3 -> 4
+                                                        close:1
+callback: c:c0 file:b
+                            invalidate file:b cache: {'b': {'data': 3, 'dirty': False, 'refcnt': 0, 'valid': True}}
+                            open:a [fd:1]
+                            read:1 -> 0
+                            close:1
+file:a contains:0
+file:b contains:4
+
+3. Similar to above, run with some different random seeds and see if
+you can predict the exact cache state at each step. Cache state can
+be observed by running with -c and -d 7.
+
+./afs.py -f 2 -C 2 -n 2 -s 3                
+      Server                         c0                          c1               
+file:a contains:0
+file:b contains:1
+                            open:a [fd:0]
+                            [a: 0 (v=1,d=0,r=1)]
+                            write:0 0 -> 2
+                            [a: 2 (v=1,d=1,r=1)]
+                                                        open:b [fd:0]
+                                                        [b: 1 (v=1,d=0,r=1)]
+                            close:0
+                            [a: 2 (v=1,d=0,r=1)]
+                                                        read:0 -> value?
+                                                        [b: 1 (v=1,d=0,r=1)]
+                            open:a [fd:1]
+                            [a: 2 (v=1,d=0,r=1)]
+                                                        close:0
+                                                        [b: 1 (v=1,d=0,r=1)]
+                            write:1 2 -> 3
+                            [a: 3 (v=1,d=1,r=1)]
+                                                        open:a [fd:1]
+                                                        [b: 1 (v=1,d=0,r=1)]
+                                                        [a: 2 (v=1,d=0,r=1)]
+                                                        write:1 2 -> 4
+                                                        [b: 1 (v=1,d=0,r=1)]
+                                                        [a: 4 (v=1,d=1,r=1)]
+                                                        close:1
+                                                        [b: 1 (v=1,d=0,r=1)]
+                                                        [a: 4 (v=1,d=0,r=1)]
+                            invalidate file:a cache: {'a': {'data': 3, 'dirty': True, 'refcnt': 1, 'valid': True}}
+                            [a: 3 (v=0,d=1,r=1)]
+                            close:1
+                            [a: 3 (v=1,d=0,r=1)]
+                                                        invalidate file:a cache: {'b': {'data': 1, 'dirty': False, 'refcnt': 0, 'valid': True}, 'a': {'data': 4, 'dirty': False, 'refcnt': 0, 'valid': True}}
+                                                        [b: 1 (v=1,d=0,r=1)]
+                                                        [a: 4 (v=0,d=0,r=1)]
+file:a contains:3
+file:b contains:1
+
+4. Now let’s construct some specific workloads. Run the simulation
+with -A oa1:w1:c1,oa1:r1:c1 flag. What are different possible
+values observed by client 1 when it reads the file a, when running
+with the random scheduler? (try different random seeds to
+see different outcomes)? Of all the possible schedule interleavings
+of the two clients’ operations, how many of them lead to client 1
+reading the value 1, and how many reading the value 0?
+
+The only configuration where client 1 reads value 1 is if opens file
+after client 0 has open, written 1 and closed it. 000111
+
+Choose which 3 of the 6 positions contain 1s (or equivalently 0s).
+Total number = from 6 choose 3 = 6! / (3!*3!) = 20
+In total we have 20 possibilities so the other 19 client 1 reads 0
+
+./afs.py -A oa1:w1:c1,oa1:r1:c1 -s 4 -c
+      Server                         c0                          c1               
+file:a contains:0
+                            open:a [fd:1]
+                            write:1 0 -> 1
+                            close:1
+                                                        open:a [fd:1]
+                                                        read:1 -> 1
+                                                        close:1
+file:a contains:1
+
+5. Now let’s construct some specific schedules. When running with
+the -A oa1:w1:c1,oa1:r1:c1 flag, also run with the following
+schedules: -S 01, -S 100011, -S 011100, and others of which
+you can think. What value will client 1 read?
+
+See 4: reads 0
+
+
+6. Now run with this workload: -A oa1:w1:c1,oa1:w1:c1, and
+vary the schedules as above. What happens when you run with -S
+011100? What about when you run with -S 010011? What is
+important in determining the final value of the file?
+
+Because both clients write different values to file a, the last one closing 
+the file determines the final value of the file so for all schedules ending in 0
+client 0 gives final value (e.g. 011100), for those ending in 1 it's client 1 (e.g. 100011).
+
+./afs.py -A oa1:w1:c1,oa1:w1:c1 -S 100011 -c
+      Server                         c0                          c1               
+file:a contains:0
+                                                        open:a [fd:1]
+                            open:a [fd:1]
+                            write:1 0 -> 1
+                            close:1
+                                                        invalidate file:a cache: {'a': {'data': 0, 'dirty': False, 'refcnt': 1, 'valid': True}}
+                                                        write:1 0 -> 2
+                                                        close:1
+                            invalidate file:a cache: {'a': {'data': 1, 'dirty': False, 'refcnt': 0, 'valid': True}}
+file:a contains:2
+
+./afs.py -A oa1:w1:c1,oa1:w1:c1 -S 011100 -c
+      Server                         c0                          c1               
+file:a contains:0
+                            open:a [fd:1]
+                                                        open:a [fd:1]
+                                                        write:1 0 -> 1
+                                                        close:1
+                            invalidate file:a cache: {'a': {'data': 0, 'dirty': False, 'refcnt': 1, 'valid': True}}
+                            write:1 0 -> 2
+                            close:1
+                                                        invalidate file:a cache: {'a': {'data': 1, 'dirty': False, 'refcnt': 0, 'valid': True}}
+file:a contains:2
